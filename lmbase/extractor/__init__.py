@@ -1,15 +1,15 @@
 """
-An interface to postprocess the response from LLM. Its major responsibility is to 
+An interface to postprocess the response from LLM. Its major responsibility is to
 extract the target result from the response.
 """
 
 import logging
 
-from llmpebase.extractor.base import BaseLlmExtractor
-from llmpebase.extractor.re_extraction import *
+from lmbase.extractor.base import BaseLlmExtractor
+from lmbase.extractor.re_extraction import *
 
 
-from llmpebase.extractor.re_extraction import (
+from lmbase.extractor.re_extraction import (
     GSM8KGtReExtractor,
     GSM8KRespReExtractor,
     MMLUGtReExtractor,
@@ -24,7 +24,7 @@ from llmpebase.extractor.re_extraction import (
     AQUAGtReExtractor,
 )
 
-from llmpebase.extractor.llm_extraction import (
+from lmbase.extractor.llm_extraction import (
     MMLURespLlmExtractor,
     MATHGtLlmExtractor,
     GameOf24RespLlmExtractor,

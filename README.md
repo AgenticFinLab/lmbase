@@ -1,13 +1,13 @@
 # Overview
-`llmpebase` is a unified platform designed to support experiments with various reasoning methods for large language models (LLMs) in problem-solving. This codebase is designed to be _easy to use_ and ensures fair comparisons across methods. It provides modular components that facilitate the implementation of new reasoning algorithms and their application to diverse datasets across various tasks for comprehensive evaluation.
+`lmbase` is a unified platform designed to support experiments with various reasoning methods for large language models (LLMs) in problem-solving. This codebase is designed to be _easy to use_ and ensures fair comparisons across methods. It provides modular components that facilitate the implementation of new reasoning algorithms and their application to diverse datasets across various tasks for comprehensive evaluation.
 
 ## Code structure
-The structure of `llmpebase` is 
+The structure of `lmbase` is 
 
     .
     ├── configs                         # Configuration files to be used
     ├── examples                        # Implemented examples
-    ├── llmpebase                       # The source code of `llmpebase`
+    ├── lmbase                       # The source code of `lmbase`
     └──── datasets                       # Datasets
     └──── models                         # LLMs, prompting, and thought structures
     └──── exactor                        # To extract the result from the output 
@@ -68,20 +68,20 @@ Commonsense reasoning:
 
 
 # How to use 
-Anyone can run `examples/` of `llmpebase` by executing the following three steps: 
+Anyone can run `examples/` of `lmbase` by executing the following three steps: 
 
 0. (Optional). To use ChatGPT API, one needs to have the _OPENAI_API_KEY_, _OPENAI_ORGAN_KEY_, and _ANTHROPIC_KEY_ and set them in the file `.env` under the root directory.
 
-1. Download the code from GitHub. Install `llmpebase` by running 
+1. Download the code from GitHub. Install `lmbase` by running 
     ```console
     $ pip install .
     ```
 
 2. Run the example by running 
     ```console
-    $ python examples/ChainOfThought/ChainOfThought.py -c configs/GSM8K/Standard_chatgpt.yml -b LLMPEBASE
-    $ python examples/ChainOfThought/ChainOfThought.py -c configs/GSM8K/CoT_chatgpt.yml -b LLMPEBASE
-    $ python examples/ChainOfThought/ChainOfThought.py -c configs/GSM8K/ZeroCoT_chatgpt.yml -b LLMPEBASE
+    $ python examples/ChainOfThought/ChainOfThought.py -c configs/GSM8K/Standard_chatgpt.yml -b lmbase
+    $ python examples/ChainOfThought/ChainOfThought.py -c configs/GSM8K/CoT_chatgpt.yml -b lmbase
+    $ python examples/ChainOfThought/ChainOfThought.py -c configs/GSM8K/ZeroCoT_chatgpt.yml -b lmbase
     ```
     See documents under `examples/` for more details.
 

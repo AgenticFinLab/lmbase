@@ -9,15 +9,15 @@ import json
 import glob
 from collections import defaultdict
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     MATHDatasetCatalog,
     BaseQASample,
     BaseQASampleInfo,
     MATHDatasetStatistics,
 )
-from llmpebase.utils import tools
+from lmbase.utils import tools
 
 
 class AddableDict(dict):

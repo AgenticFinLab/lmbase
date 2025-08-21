@@ -1,7 +1,7 @@
 """
 The datasource interface for the Algebra Question Answering with Rationales
 (AQUA) dataset.
-The detailed information is shown in 
+The detailed information is shown in
 https://huggingface.co/datasets/aqua_rat
 """
 
@@ -10,8 +10,8 @@ import os
 import glob
 from datasets import load_dataset
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
     BaseQASample,

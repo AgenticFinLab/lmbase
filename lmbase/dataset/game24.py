@@ -1,4 +1,4 @@
-""" 
+"""
 The datasource inference for the Game of 24 dataset.
 """
 
@@ -10,8 +10,8 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
     BaseQASample,

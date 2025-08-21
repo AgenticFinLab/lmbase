@@ -1,7 +1,7 @@
 """
 The datasource interface for the Simple Variations on Arithmetic Math word Problems
 (SVAMP) dataset.
-The detailed information is shown in 
+The detailed information is shown in
 https://huggingface.co/datasets/ChilleD/SVAMP
 """
 
@@ -11,15 +11,15 @@ from collections import defaultdict
 import glob
 from datasets import load_dataset
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
     BaseQASample,
     BaseQASampleInfo,
     DatasetStatistics,
 )
-from llmpebase.utils import tools
+from lmbase.utils import tools
 
 
 class SVAMPDataset(base.BaseDataset):

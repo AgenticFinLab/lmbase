@@ -1,6 +1,6 @@
-""" 
+"""
 The datasource inference for the GSM8K dataset.
-The detailed information of it is shown in 
+The detailed information of it is shown in
 https://huggingface.co/datasets/gsm8k
 """
 
@@ -9,8 +9,8 @@ import os
 import pandas as pd
 
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
     BaseQASample,

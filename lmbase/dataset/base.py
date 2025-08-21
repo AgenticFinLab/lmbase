@@ -10,13 +10,13 @@ import logging
 import torch
 from torchvision.datasets.utils import download_url, extract_archive
 
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
 )
-from llmpebase.model import define_model
-from llmpebase.extractor import get as get_extractor
-from llmpebase.config import Config
+from lmbase.model import define_model
+from lmbase.extractor import get as get_extractor
+from lmbase.config import Config
 
 
 def extract_compression_style(url):

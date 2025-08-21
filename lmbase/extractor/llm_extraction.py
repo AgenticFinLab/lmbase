@@ -2,9 +2,9 @@
 An extractor relying LLMs to extract the target result from a long response.
 """
 
-from llmpebase.extractor import base
+from lmbase.extractor import base
 
-from llmpebase.extractor.re_extraction import extract_flagged_conclusion
+from lmbase.extractor.re_extraction import extract_flagged_conclusion
 
 
 class MMLURespLlmExtractor(base.BaseLlmExtractor):
@@ -50,5 +50,9 @@ class GameOf24RespLlmExtractor(base.BaseLlmExtractor):
     notice: str = "Directly output the summarized equation without any modifications."
 
     polish_answer: str = "The polished string is:"
-    polish_instruction: str = "Polish this string into {}, without including any additional characters and words, such as $. Please only maintain the necessary brackets. "
-    polish_notice: str = "Return a single string as the polished result. Return the given string directly if there is no need to polish."
+    polish_instruction: str = (
+        "Polish this string into {}, without including any additional characters and words, such as $. Please only maintain the necessary brackets. "
+    )
+    polish_notice: str = (
+        "Return a single string as the polished result. Return the given string directly if there is no need to polish."
+    )

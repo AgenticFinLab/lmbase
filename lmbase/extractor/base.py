@@ -4,7 +4,7 @@ Base extractors to be inherited by the specific extractor.
 
 from typing import Tuple, Any
 
-# from llmpebase.model.LM.base import BaseLlmRequest
+# from lmbase.model.LM.base import BaseLlmRequest
 
 
 class BaseReExtractor:
@@ -24,7 +24,9 @@ class BaseReExtractor:
 class BaseLlmExtractor:
     """The base extractor built upon the LLM to extract the target result from the response."""
 
-    extract_target: str = "pure mathematical types, such as an integer, float, fractional expression or a mathematical expression"
+    extract_target: str = (
+        "pure mathematical types, such as an integer, float, fractional expression or a mathematical expression"
+    )
 
     system_prompt = "You are a powerful AI extractor in math responsible for identifying and extracting the core solution for a question from a long text answer. Please summarize the answer and extract the final solution as {}. Please only maintain the original content without making any modifications. One important hint is that the final solution generally appears at the end of the answer."
 
@@ -36,8 +38,12 @@ class BaseLlmExtractor:
     notice: str = "Directly return the extracted solution without any modifications."
 
     polish_answer: str = "The polished string is:"
-    polish_instruction: str = "Polish this string into {}, without including any additional characters and words, such as $. Please recall the following special cases: \n1). When the string is a description, please convert it to value. For example, for 'There are three balls', you should output 3. \n2). When the string is an equation such as n=5 or n=\\frac{{1}}{{6}}, the polished outcomes should be 5, 1/6, respectively.\n3). For a string such as $\\frac{{3}}{{10}}$, the polished outcomes should be 3/10."
-    polish_notice: str = "Return a single string as the polished result. Return the given string directly if there is no need to polish."
+    polish_instruction: str = (
+        "Polish this string into {}, without including any additional characters and words, such as $. Please recall the following special cases: \n1). When the string is a description, please convert it to value. For example, for 'There are three balls', you should output 3. \n2). When the string is an equation such as n=5 or n=\\frac{{1}}{{6}}, the polished outcomes should be 5, 1/6, respectively.\n3). For a string such as $\\frac{{3}}{{10}}$, the polished outcomes should be 3/10."
+    )
+    polish_notice: str = (
+        "Return a single string as the polished result. Return the given string directly if there is no need to polish."
+    )
 
     def __init__(self, llm_model):
         # Define the request model used as the extractor

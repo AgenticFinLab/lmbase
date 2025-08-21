@@ -1,17 +1,18 @@
 """
 An interface of datasets
 """
+
 import logging
 
-from llmpebase.dataset.gsm8k import DataSource as gsm8k_datasource
-from llmpebase.dataset.mmlu import DataSource as mmlu_datasource
-from llmpebase.dataset.game24 import DataSource as game24_datasource
-from llmpebase.dataset.math import DataSource as math_datasource
-from llmpebase.dataset.bbh import DataSource as bbh_datasource
-from llmpebase.dataset.theoremqa import DataSource as theoremqa_datasource
-from llmpebase.dataset.csqa import DataSource as csqa_datasource
-from llmpebase.dataset.aqua import DataSource as aqua_datasource
-from llmpebase.dataset.svamp import DataSource as svamp_datasource
+from lmbase.dataset.gsm8k import DataSource as gsm8k_datasource
+from lmbase.dataset.mmlu import DataSource as mmlu_datasource
+from lmbase.dataset.game24 import DataSource as game24_datasource
+from lmbase.dataset.math import DataSource as math_datasource
+from lmbase.dataset.bbh import DataSource as bbh_datasource
+from lmbase.dataset.theoremqa import DataSource as theoremqa_datasource
+from lmbase.dataset.csqa import DataSource as csqa_datasource
+from lmbase.dataset.aqua import DataSource as aqua_datasource
+from lmbase.dataset.svamp import DataSource as svamp_datasource
 
 datasources = {
     "GSM8K": gsm8k_datasource,

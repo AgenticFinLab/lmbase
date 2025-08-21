@@ -7,7 +7,7 @@ from typing import List
 
 import pandas as pd
 
-from llmpebase.extractor import base
+from lmbase.extractor import base
 
 
 def is_flag_string(text_str: str, flags: List[str]):

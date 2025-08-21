@@ -1,6 +1,6 @@
-""" 
+"""
 The datasource inference for the BIG-Bench Hard (BBH) dataset.
-The detailed information of it is shown in 
+The detailed information of it is shown in
 https://github.com/suzgunmirac/BIG-Bench-Hard
 """
 
@@ -9,15 +9,15 @@ import json
 import glob
 from collections import defaultdict
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
     BaseQASample,
     BaseQASampleInfo,
     DatasetStatistics,
 )
-from llmpebase.utils import tools
+from lmbase.utils import tools
 
 
 def extract_problem_name(filename: str):

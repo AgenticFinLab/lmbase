@@ -6,7 +6,7 @@ import os
 import json
 import glob
 
-from llmpebase.dataset.data_generic import BaseQASample
+from lmbase.dataset.data_generic import BaseQASample
 
 
 class BaseRecorder:

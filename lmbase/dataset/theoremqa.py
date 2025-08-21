@@ -1,6 +1,6 @@
 """
 The datasource inference for the TheoremQA (TQA) dataset.
-The detailed information of it is shown in 
+The detailed information of it is shown in
 https://github.com/wenhuchen/TheoremQA
 
 Currently, we do not support the multimodal samples, i.e.,
@@ -11,8 +11,8 @@ import os
 import json
 from collections import defaultdict
 
-from llmpebase.dataset import base
-from llmpebase.dataset.data_generic import (
+from lmbase.dataset import base
+from lmbase.dataset.data_generic import (
     DatasetMetaCatalog,
     DatasetCatalog,
     BaseQASample,
@@ -20,7 +20,7 @@ from llmpebase.dataset.data_generic import (
     DatasetStatistics,
 )
 
-from llmpebase.utils import tools
+from lmbase.utils import tools
 
 
 class TheoremQADataset(base.BaseDataset):
