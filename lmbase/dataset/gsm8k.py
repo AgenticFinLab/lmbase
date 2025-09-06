@@ -1,92 +1,47 @@
 """
-The datasource inference for the GSM8K dataset.
-The detailed information of it is shown in
-https://huggingface.co/datasets/gsm8k
+Interface of the GSM8K dataset.
 """
 
-import os
-
-import pandas as pd
+from datasets import load_dataset
 
 
-from lmbase.dataset import base
-from lmbase.dataset.data_generic import (
-    DatasetMetaCatalog,
-    DatasetCatalog,
-    BaseQASample,
-    BaseQASampleInfo,
-    DatasetStatistics,
-)
+from dmmrl.tools import re_utility
+from dmmrl.identifier import SOLKEY
+from dmmrl.dataset.base import TextSample, VisualTextBase
 
 
-class GSM8KDataset(base.BaseDataset):
-    """
-    An interface for the GSM8K dataset.
-    """
+class GSM8KDataset(VisualTextBase):
+    """A consistent interface for the GSM8k dataset."""
 
-    def create_data_catalog(self):
-        data_frame = pd.read_parquet(self.phase_data_path, engine="pyarrow")
-        n_items = data_frame.shape[0]
+    def __init__(self, split="train"):
+        super().__init__(split=split)
+        self.hf_dataset = load_dataset("openai/gsm8k", "main", split=split)
 
-        collected_items = [
-            BaseQASampleInfo(
-                sample_id=i + 1,
-                sample_field="Math",
-                sample_problem="Algebra",
-                sample_dataset="GSM8K",
-                sample_filepath=self.phase_data_path,
-            )
-            for i in range(n_items)
-        ]
+        # Use the visit index as the sample ID
+        self.idx = 0
 
-        return DatasetCatalog(
-            data_phase=self.phase,
-            problem_fields=["Math"],
-            problem_categories={"Math": ["Algebra"]},
-            category_samples={"Math": {"Algebra": list(range(n_items))}},
-            data_samples=collected_items,
-            data_statistics=DatasetStatistics(
-                num_samples=n_items,
-                category_info={"Math": {"Algebra": {"num_samples": n_items}}},
-            ),
+        # Make the sample to be the desired format defined
+        # in the dataset.base class
+        self.hf_dataset = self.hf_dataset.map(
+            self.to_format,
+            batch_size=1,
+            load_from_cache_file=True,
+            remove_columns=self.hf_dataset.column_names,
         )
 
-    def get_sample(self, idx):
-        """Get one sample."""
-        sample_info = self.data_catalog.data_samples[idx]
-        sample_path = sample_info["sample_filepath"]
-        data_frame = pd.read_parquet(sample_path, engine="pyarrow")
+    def to_format(self, sample):
+        """Get the sample from the given idx."""
+        self.idx += 1
 
-        raw_answer = data_frame.iloc[idx, -1]
-        # Extract the answer, conclusion, and groundtruth from the raw answer
-        answer, conclusion, groundtruth = self.gt_extractor.forward(raw_answer)
-
-        return BaseQASample(
-            question=data_frame.iloc[idx, 0],
-            answer=answer,
-            conclusion=conclusion,
-            groundtruth=groundtruth,
-            auxiliary={"raw_answer": raw_answer, "sample_info": sample_info},
-        )
-
-
-class DataSource(base.DataSource):
-    """The GSM8K datasource."""
-
-    def __init__(self):
-        super().__init__()
-
-        self.base_dataset = GSM8KDataset
-
-    def create_meta_catalog(self):
-        """Configure the dataset."""
-        return DatasetMetaCatalog(
-            dataset_name="GSM8K",
-            task_type="Mathematical Reasoning",
-            dataset_path=self.data_path,
-            split_path={
-                "train": os.path.join(self.data_path, "train.parquet"),
-                "test": os.path.join(self.data_path, "test.parquet"),
-                "validation": os.path.join(self.data_path, "test.parquet"),
-            },
+        # Create the sample
+        groundtruth_sol = re_utility.extract_content(sample["answer"], marker="####")
+        groundtruth_sol = "" if groundtruth_sol is None else groundtruth_sol
+        problem = sample["question"]
+        question = f"{problem} (Place final solution within {SOLKEY})."
+        return TextSample(
+            main_id=f"{self.split}-ID{self.idx}",
+            question=question,
+            cot_answer=sample["answer"],
+            groundtruth=groundtruth_sol,
+            data_info={"dataset": "gsm8k"},
         )

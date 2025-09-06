@@ -1,209 +1,117 @@
 """
-A base datasource class.
+Interface of the base dataset.
 """
 
-import os
-import re
-import json
 import logging
+from typing import List, Tuple
+from dataclasses import dataclass
 
-import torch
-from torchvision.datasets.utils import download_url, extract_archive
-
-from lmbase.dataset.data_generic import (
-    DatasetMetaCatalog,
-    DatasetCatalog,
-)
-from lmbase.model import define_model
-from lmbase.extractor import get as get_extractor
-from lmbase.config import Config
+from torch.utils.data import Dataset
+from transformers.utils import ModelOutput as FieldFrozenContainer
 
 
-def extract_compression_style(url):
-    """Extract the style of compression from the url."""
-    pattern = r"\.(zip|tar|tar\.gz)$"
-    match = re.search(pattern, url)
-    if match is not None:
-        return match.group(1)
+@dataclass
+class TextSample(FieldFrozenContainer):
+    """
+    The sample of the unimodal dataset.
+    """
 
-    return "zip"
+    # ID of the sample
+    main_id: str = None
+    # The question to be answered
+    question: str = None
+    # Answer in the chain of thought format
+    cot_answer: str = None
+    # groundtruth solution
+    groundtruth: str = None
+    # parse_groundtruth: str = None
+    # Additional field to hold the information
+    # of this sample
+    data_info: dict = None
 
 
-class BaseDataset(torch.utils.data.Dataset):
-    """The Base dataset."""
+@dataclass
+class VisualTextSample(TextSample):
+    """
+    The sample of the unimodal dataset.
+    """
 
-    def __init__(
-        self, data_meta_catalog: DatasetMetaCatalog, phase: str, gt_extractor=None
-    ):
+    # Images involved in the question
+    # Each item is a tuple holding the image's token
+    # name in the question and the path
+    # For example, if the question is:
+    #   <image 1> For company B, the revenue is $6,000,000.
+    # Then the item to be added is ("image 1", "path/to/image")
+    question_images: List[Tuple[str, str]] = None
+
+    # Images involved in the answer
+    # Each item is a list holding (image token name, images' path), which
+    # is same as the one used by the `question_images`.
+    # for the corresponding reasoning step, i.e.,
+    # one thought in the cot
+    cot_images: List[List[Tuple[str, str]]] = None
+
+
+class VisualTextBase(Dataset):
+    """A base class for the visual-text dataset."""
+
+    def __init__(self, split="train"):
         super().__init__()
-        self.data_meta_catalog = data_meta_catalog
-        self.data_name = data_meta_catalog["dataset_name"]
-        self.phase = phase
-        self.phase_data_path = data_meta_catalog.split_path[phase]
-        catalog_filename = f"{phase}_data_catalog.json"
-        self.data_catalog_path = os.path.join(
-            data_meta_catalog.dataset_path, catalog_filename
-        )
+        # Which part of the data to use
+        self.split = split
 
-        self.customize_data_catalog = DatasetCatalog
-        self.data_catalog: DatasetCatalog = None
+        # The hf_dataset of the desired split.
+        self.hf_dataset = None
+        # ori_columns = self.hf_dataset[0].keys()
+        # self.hf_dataset = self.hf_dataset.map(
+        #     self.to_format,
+        #     remove_columns=ori_columns,
+        #     # Uncomment only to test the function to_format
+        #     # keep_in_memory=True,
+        #     # load_from_cache_file=False,
+        #     load_from_cache_file=True,
+        # )
+        # Convert the sample to be the format required by
+        # the LLMs, VLMs and so no
+        self.lm_format_function = None
 
-        # Set the groundtruth extractor
-        self.gt_extractor = gt_extractor
+    def save_pil_image(self, image_data, path: str, filename: str):
+        """A function to save the PIL image to a file."""
+        save_path = None
+        if image_data is not None:
+            img_format = image_data.format if image_data.format is not None else "PNG"
+            extension = img_format.lower()
+            if img_format.upper() == "JPEG":
+                extension = "jpg"
 
-    def create_data_catalog(self):
-        """Create the data catalog for the dataset."""
-        raise NotImplementedError(
-            "An implementation of create_data_catalog is required."
-        )
+            filename = f"{filename}.{extension}"
+            save_path = f"{path}/{filename}"
+            image_data.save(save_path, img_format)
 
-    def configuration(self):
-        """Configure the catalog of the dataset"""
-        data_config = Config().data
-        model_config = Config().model
-        data_config = Config.items_to_dict(data_config._asdict())
-        model_config = Config.items_to_dict(model_config._asdict())
-        if os.path.exists(self.data_catalog_path):
-            with open(self.data_catalog_path, "r", encoding="utf-8") as f:
-                self.data_catalog = self.customize_data_catalog(**json.load(f))
-            logging.info("Loaded data catalog from %s.", self.data_catalog_path)
-        else:
-            self.data_catalog = self.create_data_catalog()
-            with open(self.data_catalog_path, "w", encoding="utf-8") as f:
-                json.dump(self.data_catalog, f)
-            logging.info("Created data catalog in %s.", self.data_catalog_path)
+            return save_path
 
-        # Set the extractor for the groundtruth extraction
-        if self.gt_extractor is None and "extractor" in data_config:
-            config = data_config["extractor"]
+        return save_path
 
-            extractor = get_extractor(
-                data_name=data_config["data_name"],
-                config=config,
-            )
-            if config["style"] == "llm":
-                if "llm_config" not in config:
-                    config["llm_config"] = model_config
-                self.gt_extractor = extractor(
-                    llm_model=define_model(config["llm_config"])
-                )
-            else:
-                self.gt_extractor = extractor()
-
-    def get_sample(self, idx):
-        """Get one sample."""
-        raise NotImplementedError("An implementation of get_sample is required.")
-
-    def __getitem__(self, idx: int):
+    # A memebsership function muse be implemented
+    def to_format(self, sample: dict):
         """Get the sample from the given idx."""
-        return self.get_sample(idx)
+        raise NotImplementedError
 
     def __len__(self):
-        """Obtain the number of samples."""
-        return self.data_catalog.data_statistics["num_samples"]
+        return len(self.hf_dataset)
 
-    def get_problem_sample_indexes(self, problem_name):
-        """Get sample indexes of one problem."""
+    def __getitem__(self, idx):
+        """Load the sample."""
+        sample = self.hf_dataset[idx]
 
-        return self.data_catalog.category_samples[problem_name]
-
-
-class DataSource:
-    """The Base datasource."""
-
-    def __init__(self):
-        # Extract the data information from the config file
-
-        self.data_name = Config().data.data_name
-        self.data_path = Config().data.data_path
-        self.download_url = Config().data.download_url
-
-        # Generate the data path and create one when necessary
-        self.data_path = os.path.join(self.data_path, self.data_name)
-        os.makedirs(self.data_path, exist_ok=True)
-
-        self.meta_catalog_path = os.path.join(self.data_path, "meta_catalog.json")
-        self.data_meta_catalog: DatasetMetaCatalog = None
-
-        # Set the base dataset
-        self.base_dataset = BaseDataset
-
-    def create_meta_catalog(self):
-        """Create the meta catalog for the dataset."""
-        raise NotImplementedError(
-            "An implementation of one specific dataset is required."
-        )
-
-    def configuration(self):
-        """Configure the dataset."""
-
-        if os.path.exists(self.meta_catalog_path):
-            with open(self.meta_catalog_path, "r", encoding="utf-8") as f:
-                self.data_meta_catalog = DatasetMetaCatalog(**json.load(f))
-            logging.info("Loaded meta catalog from %s.", self.meta_catalog_path)
-        else:
-            self.data_meta_catalog = self.create_meta_catalog()
-            with open(self.meta_catalog_path, "w", encoding="utf-8") as f:
-                json.dump(self.data_meta_catalog, f)
-
-    def download_data(self, phase):
-        """Download the data for the current phase."""
-        phase_data_path = self.data_meta_catalog["split_path"][phase]
-        phase_data_path = (
-            phase_data_path[0]
-            if isinstance(phase_data_path, (list, tuple))
-            else phase_data_path
-        )
-        if self.download_url is not None and not os.path.exists(phase_data_path):
-            compression = extract_compression_style(self.download_url)
-            filename = self.data_name + "." + compression
-            download_file_path = os.path.join(self.data_path, filename)
-
-            if not os.path.exists(download_file_path):
-                download_url(
-                    url=self.download_url,
-                    root=self.data_path,
-                    filename=filename,
-                )
-
-            extracted_folder = extract_archive(
-                from_path=download_file_path,
-                to_path=self.data_path,
-            )
+        if len(sample["groundtruth"]) == 0:
             logging.info(
-                "Downloaded the %s and extract to %s.",
-                download_file_path,
-                extracted_folder,
+                "  !! Failed to parse gold solution: %s ", sample["cot_answer"]
             )
-        if not os.path.exists(phase_data_path):
-            raise FileNotFoundError(f"{phase_data_path} does not exist.")
 
-        logging.info("Connected to the data source in %s.", phase_data_path)
+        # Second, make the sample to be the desired format required
+        # by the LLMs and VLMs.
+        if self.lm_format_function is not None:
+            sample = self.lm_format_function(sample)
 
-    def prepare_data(self, phase: str):
-        """Prepare the source data."""
-        # Configuration the dataset
-        self.configuration()
-
-        # Download the data when necessary
-        self.download_data(phase)
-
-    def get_phase_dataset(self, phase: str):
-        """Obtain the dataset for the specific phase."""
-
-        self.prepare_data(phase)
-        dataset = self.base_dataset(
-            data_meta_catalog=self.data_meta_catalog, phase=phase
-        )
-        dataset.configuration()
-        return dataset
-
-    def get_train_set(self):
-        """Obtains the training dataset."""
-        phase = "train"
-        return self.get_phase_dataset(phase)
-
-    def get_test_set(self):
-        """Obtains the validationidation dataset."""
-        phase = "test"
-        return self.get_phase_dataset(phase)
+        return sample

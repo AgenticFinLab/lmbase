@@ -1,160 +1,60 @@
 """
-The datasource inference for the MATH dataset.
-The detailed information of it is shown in
-https://people.eecs.berkeley.edu/~hendrycks/MATH.tar
+Interface of the MATH dataset.
 """
 
-import os
-import json
-import glob
-from collections import defaultdict
-
-from lmbase.dataset import base
-from lmbase.dataset.data_generic import (
-    DatasetMetaCatalog,
-    MATHDatasetCatalog,
-    BaseQASample,
-    BaseQASampleInfo,
-    MATHDatasetStatistics,
-)
-from lmbase.utils import tools
+from datasets import load_dataset
+from math_verify import LatexExtractionConfig, parse
 
 
-class AddableDict(dict):
-    """A dict to merge two dicts by adding the values of the same key."""
-
-    def update(self, other):
-        for key, value in other.items():
-            if key in self:
-                self[key] += value
-            else:
-                self[key] = value
+from dmmrl.dataset.base import TextSample, VisualTextBase
+from dmmrl.identifier import SOLKEY
 
 
-def count_category(category_path: str) -> tuple:
-    """Count the data information in the category."""
-    category_levels = defaultdict(int)
-    collect_items = []
-    qa_files = glob.glob(f"{category_path}/*.json")
-    category_name = ""
-    for filepath in qa_files:
-        file_id = os.path.basename(filepath).split(".json")[0]
+class MATHDataset(VisualTextBase):
+    """A consistent interface for the MATH dataset."""
 
-        # Load the data file
-        with open(filepath, "r", encoding="utf-8") as json_file:
-            data = json.load(json_file)
-            category_name = tools.format_term(data["type"])
-            level = data["level"]
-
-        collect_items.append(
-            BaseQASampleInfo(
-                sample_id=file_id,
-                sample_field="Math",
-                sample_problem=category_name,
-                sample_dataset="MATH",
-                sample_filepath=filepath,
-            )
+    def __init__(self, split="train"):
+        super().__init__(split=split)
+        self.hf_dataset = load_dataset(
+            "DigitalLearningGmbH/MATH-lighteval", split=split
+        )
+        # Use the visit index as the sample ID
+        self.idx = 0
+        # Make the sample to be the desired format defined
+        # in the dataset.base class
+        self.hf_dataset = self.hf_dataset.map(
+            self.to_format,
+            batch_size=1,
+            load_from_cache_file=True,
+            remove_columns=self.hf_dataset.column_names,
         )
 
-        category_levels[level] += 1
+    def to_format(self, sample):
+        """Get the sample from the given idx."""
+        self.idx += 1
 
-    return category_name, category_levels, collect_items
-
-
-class MATHDataset(base.BaseDataset):
-    """
-    An interface for the MATH dataset.
-    """
-
-    def __init__(self, data_meta_catalog: DatasetMetaCatalog, phase: str):
-        super().__init__(data_meta_catalog, phase)
-
-        self.customize_data_catalog = MATHDatasetCatalog
-
-    def create_data_catalog(self):
-        # Collect all category folders of the MATH dataset
-        folders = [
-            folder
-            for folder in glob.glob(os.path.join(self.phase_data_path, "*"))
-            if os.path.isdir(folder)
-        ]
-        # Visit each category folder to get data information
-        category_info = defaultdict(dict)
-        category_samples = defaultdict(list)
-        difficulty_count = AddableDict()
-        collect_items = []
-        for category_path in folders:
-            # Get the info of the category
-            category_name, category_levels, items = count_category(category_path)
-            # Update the category info to the category_info
-            category_info[category_name]["num_samples"] = len(items)
-            category_info[category_name].update(category_levels)
-            difficulty_count.update(category_levels)
-            collect_items.extend(items)
-            current_idx = len(collect_items)
-            # Add sample indexes to the category_samples
-            category_samples[category_name].extend(
-                range(current_idx - len(items), current_idx)
-            )
-
-        return MATHDatasetCatalog(
-            data_phase=self.phase,
-            data_samples=collect_items,
-            category_samples=category_samples,
-            problem_fields=["Math"],
-            problem_categories={"Math": list(category_info.keys())},
-            data_statistics=MATHDatasetStatistics(
-                num_samples=len(collect_items),
-                category_info={"Math": category_info},
-                difficulty_count=difficulty_count,
-            ),
+        # Create the sample
+        cot_answer = sample["solution"]
+        # opt = re_utility.extract_format_equations(cot_answer, target_format="\\boxed")
+        # groundtruth_sol = "" if opt is None else opt[-1]
+        # The parsed item will be a list holding a value and a str value
+        groundtruth_sol = parse(
+            cot_answer,
+            extraction_mode="first_match",
+            extraction_config=[LatexExtractionConfig()],
         )
+        groundtruth_sol = "" if len(groundtruth_sol) == 0 else groundtruth_sol[-1]
+        problem = sample["problem"]
+        question = f"{problem} (Place final solution within {SOLKEY})."
 
-    def get_sample(self, idx: int):
-        """Get one sample from the file."""
-        sample_info = self.data_catalog.data_samples[idx]
-
-        sample_filepath = sample_info["sample_filepath"]
-
-        with open(sample_filepath, "r", encoding="utf-8") as json_file:
-            # Load the JSON data from the file
-            data = json.load(json_file)
-
-        answer = data["solution"].rstrip()
-
-        answer, conclusion, groundtruth = self.gt_extractor.forward(answer)
-
-        return BaseQASample(
-            question=data["problem"],
-            answer=answer,
-            conclusion=conclusion,
-            groundtruth=groundtruth,
-            auxiliary={
-                "level": data["level"],
-                "category": data["type"],
-                "sample_info": sample_info,
-            },
-        )
-
-
-class DataSource(base.DataSource):
-    """The MATH datasource."""
-
-    def __init__(self):
-        super().__init__()
-
-        self.base_dataset = MATHDataset
-
-    def create_meta_catalog(self):
-        """Configure the dataset."""
-        return DatasetMetaCatalog(
-            dataset_name="MATH",
-            huggingface_dataname="DigitalLearningGmbH/MATH-lighteval",
-            task_type="Mathematical Reasoning",
-            dataset_path=self.data_path,
-            split_path={
-                "train": os.path.join(self.data_path, "MATH/train"),
-                "test": os.path.join(self.data_path, "MATH/test"),
-                "validation": os.path.join(self.data_path, "MATH/test"),
+        return TextSample(
+            main_id=f"{self.split}-ID{self.idx}",
+            question=question,
+            cot_answer=cot_answer,
+            groundtruth=groundtruth_sol,
+            data_info={
+                "dataset": "MATH-lighteval",
+                "level": sample["problem"],
+                "type": sample["type"],
             },
         )
