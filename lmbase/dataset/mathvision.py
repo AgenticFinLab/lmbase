@@ -7,8 +7,8 @@ import ast
 import re
 import logging
 
-from fgreason.identifier import MATH_SOLUTION_PROMPT
-from fgreason.dataset.base import VisualTextSample, VisualTextBase
+from lmbase.identifier import MATH_SOLUTION_PROMPT
+from lmbase.dataset.base import VisualTextSample, VisualTextBase
 
 
 class MathVisionDataset(VisualTextBase):

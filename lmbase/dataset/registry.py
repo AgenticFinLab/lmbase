@@ -1,14 +1,14 @@
 """
 An interface to registry the datasets.
 
-The samples of each dataset within the fgreason are made in a consistent format.
+The samples of each dataset within the lmbase are made in a consistent format.
 
 Note that at the end of sample `question`, we add the solution flag prompt defined in `tmrl.identifier.py`. This is to prompt the model to add the final
 solution within a specific identifier for the simple extraction.
 """
 
 import logging
-from fgreason.dataset import (
+from lmbase.dataset import (
     gsm8k,
     math,
     aime2024,
@@ -21,7 +21,7 @@ from fgreason.dataset import (
     mathvision,
     aokvqa,
     vqav2,
-    mscoco,
+    # mscoco,
 )
 
 data_factory = {

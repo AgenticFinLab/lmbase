@@ -4,9 +4,9 @@ Interface of the GSM8K dataset.
 
 from datasets import load_dataset
 
-from fgreason.util import re_extractors
-from fgreason.identifier import MATH_SOLUTION_PROMPT
-from fgreason.dataset.base import TextSample, VisualTextBase
+from lmbase.utils import re_extractor
+from lmbase.identifier import MATH_SOLUTION_PROMPT
+from lmbase.dataset.base import TextSample, VisualTextBase
 
 
 class GSM8KDataset(VisualTextBase):
@@ -24,7 +24,7 @@ class GSM8KDataset(VisualTextBase):
         self.idx += 1
 
         # Create the sample
-        groundtruth_sol = re_extractors.extract_content(sample["answer"], marker="####")
+        groundtruth_sol = re_extractor.extract_content(sample["answer"], marker="####")
         groundtruth_sol = "" if groundtruth_sol is None else groundtruth_sol
         problem = sample["question"]
         question = f"{problem} {MATH_SOLUTION_PROMPT}"

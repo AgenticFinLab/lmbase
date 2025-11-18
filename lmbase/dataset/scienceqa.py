@@ -6,8 +6,8 @@ import os
 
 from datasets import load_dataset
 
-from fgreason.dataset.base import VisualTextSample, VisualTextBase
-from fgreason.identifier import OPTION_SOLUTION_PROMPT
+from lmbase.dataset.base import VisualTextSample, VisualTextBase
+from lmbase.identifier import OPTION_SOLUTION_PROMPT
 
 
 class ScienceQADataset(VisualTextBase):

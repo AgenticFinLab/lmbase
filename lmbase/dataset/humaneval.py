@@ -2,7 +2,7 @@
 Interface of the HumanEval dataset.
 """
 
-from fgreason.dataset.base import TextCodeSample, VisualTextBase
+from lmbase.dataset.base import TextCodeSample, VisualTextBase
 
 
 class HumanEvalDataset(VisualTextBase):

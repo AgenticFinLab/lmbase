@@ -2,8 +2,8 @@
 Interface of the AIME19832024 dataset.
 """
 
-from fgreason.dataset.base import TextSample, VisualTextBase
-from fgreason.identifier import MATH_SOLUTION_PROMPT
+from lmbase.dataset.base import TextSample, VisualTextBase
+from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
 class AIME19832024Dataset(VisualTextBase):
