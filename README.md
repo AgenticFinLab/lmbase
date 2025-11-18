@@ -1,5 +1,5 @@
 # Overview
-`lmbase` is a unified platform designed to support experiments with various reasoning methods for large language models (LLMs) in problem-solving. This codebase is designed to be _easy to use_ and ensures fair comparisons across methods. It provides modular components that facilitate the implementation of new reasoning algorithms and their application to diverse datasets across various tasks for comprehensive evaluation.
+`lmbase` is a unified platform designed to support experiments with various reasoning methods for large models (LLMs, VLMs) in problem-solving. This codebase is designed to be _easy to use_ and ensures fair comparisons across methods. It provides modular components that facilitate the implementation of new reasoning algorithms and their application to diverse datasets across various tasks for comprehensive evaluation.
 
 ## Code structure
 The structure of `lmbase` is 

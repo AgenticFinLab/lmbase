@@ -4,48 +4,36 @@ Interface of the MMMU dataset.
 
 import os
 import ast
-from datasets import load_dataset
 
-from projinit.config import Config
 
-from dmmrl.identifier import SOLKEY
-from dmmrl.dataset.base import VisualTextSample, VisualTextBase
+from fgreason.identifier import OPTION_SOLUTION_PROMPT
+from fgreason.dataset.base import VisualTextSample, VisualTextBase
 
 
 class MMMUDataset(VisualTextBase):
     """A consistent interface for the MMMU dataset."""
 
-    def __init__(self, split="train"):
-        super().__init__(split=split)
-        self.hf_dataset = load_dataset("lmms-lab/MMMU", split=split)
-
-        self.data_path = Config().data.data_path
+    def __init__(
+        self, split: str = "train", hf_dataname: str = None, config: dict = None
+    ):
+        self.data_path = config["data_path"]
         self.image_path = f"{self.data_path}/images"
         os.makedirs(self.image_path, exist_ok=True)
 
-        # Use the visit index as the sample ID
-        self.idx = 0
-        # Make the sample to be the desired format defined
-        # in the dataset.base class
-        self.hf_dataset = self.hf_dataset.map(
-            self.to_format,
-            batch_size=1,
-            load_from_cache_file=True,
-            remove_columns=self.hf_dataset.column_names,
-        )
+        super().__init__(split=split, hf_dataname=hf_dataname, config=config)
 
     def to_format(self, sample: dict):
         """Get the sample from the given idx."""
         sample_id = sample["id"]
         # Create the sample
         question = sample["question"]
-        question = f"{question} (Place final selected option within {SOLKEY})."
+        question = f"{question} {OPTION_SOLUTION_PROMPT}."
         options = sample["options"]
 
         question_images = []
         for i in range(1, 8):
-            image_name = f"image-{i}"
-            q_image_token = f"image-{i}"
+            image_name = f"image_{i}"
+            q_image_token = f"image {i}"
             filename = f"Image-ID{sample_id}-{image_name}"
             filepath = f"{self.image_path}/{filename}.png"
             if os.path.exists(filepath):
@@ -77,8 +65,8 @@ class MMMUDataset(VisualTextBase):
             cot_answer=cot_answer,
             groundtruth=sample["answer"],
             question_images=question_images,
-            data_info={
-                "dataset": "lmms-lab/MMMU",
+            sample_info={
+                "dataset": self.hf_dataname,
                 "question_type": sample["question_type"],
                 "subfield": sample["subfield"],
                 "topic_difficulty": sample["topic_difficulty"],

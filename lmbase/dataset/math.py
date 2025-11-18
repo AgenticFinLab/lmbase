@@ -2,32 +2,14 @@
 Interface of the MATH dataset.
 """
 
-from datasets import load_dataset
 from math_verify import LatexExtractionConfig, parse
 
-
-from dmmrl.dataset.base import TextSample, VisualTextBase
-from dmmrl.identifier import SOLKEY
+from fgreason.dataset.base import TextSample, VisualTextBase
+from fgreason.identifier import MATH_SOLUTION_PROMPT
 
 
 class MATHDataset(VisualTextBase):
     """A consistent interface for the MATH dataset."""
-
-    def __init__(self, split="train"):
-        super().__init__(split=split)
-        self.hf_dataset = load_dataset(
-            "DigitalLearningGmbH/MATH-lighteval", split=split
-        )
-        # Use the visit index as the sample ID
-        self.idx = 0
-        # Make the sample to be the desired format defined
-        # in the dataset.base class
-        self.hf_dataset = self.hf_dataset.map(
-            self.to_format,
-            batch_size=1,
-            load_from_cache_file=True,
-            remove_columns=self.hf_dataset.column_names,
-        )
 
     def to_format(self, sample):
         """Get the sample from the given idx."""
@@ -45,16 +27,17 @@ class MATHDataset(VisualTextBase):
         )
         groundtruth_sol = "" if len(groundtruth_sol) == 0 else groundtruth_sol[-1]
         problem = sample["problem"]
-        question = f"{problem} (Place final solution within {SOLKEY})."
+        question = f"{problem} {MATH_SOLUTION_PROMPT}"
 
         return TextSample(
-            main_id=f"{self.split}-ID{self.idx}",
+            main_id=f"ID{self.idx}",
+            split=self.split,
             question=question,
             cot_answer=cot_answer,
             groundtruth=groundtruth_sol,
-            data_info={
-                "dataset": "MATH-lighteval",
-                "level": sample["problem"],
+            sample_info={
+                "dataset": self.hf_dataname,
+                "level": sample["level"],
                 "type": sample["type"],
             },
         )

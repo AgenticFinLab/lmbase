@@ -2,10 +2,14 @@
 Interface of the base dataset.
 """
 
+import os
+import json
+import random
 import logging
 from typing import List, Tuple
 from dataclasses import dataclass
 
+from datasets import load_dataset
 from torch.utils.data import Dataset
 from transformers.utils import ModelOutput as FieldFrozenContainer
 
@@ -17,7 +21,11 @@ class TextSample(FieldFrozenContainer):
     """
 
     # ID of the sample
+    # By default, it is the index of the sample in the dataset
+    # Otherwise, it can be the ID of the sample in the dataset
     main_id: str = None
+    # Split:
+    split: str = None
     # The question to be answered
     question: str = None
     # Answer in the chain of thought format
@@ -27,7 +35,17 @@ class TextSample(FieldFrozenContainer):
     # parse_groundtruth: str = None
     # Additional field to hold the information
     # of this sample
-    data_info: dict = None
+    sample_info: dict = None
+
+
+@dataclass
+class TextCodeSample(TextSample):
+    """
+    The coding sample of the unimodal dataset.
+    """
+
+    # Test samples
+    test_cases: str = None
 
 
 @dataclass
@@ -47,33 +65,85 @@ class VisualTextSample(TextSample):
     # Images involved in the answer
     # Each item is a list holding (image token name, images' path), which
     # is same as the one used by the `question_images`.
-    # for the corresponding reasoning step, i.e.,
-    # one thought in the cot
+    # for the corresponding reasoning step,
+    # i.e. one thought in the cot
     cot_images: List[List[Tuple[str, str]]] = None
+
+
+@dataclass
+class VisualTextCodeSample(TextCodeSample):
+    """
+    The sample of the unimodal dataset.
+    """
+
+    # Test visual samples
+    test_visual_cases: List[Tuple[str, str]] = None
 
 
 class VisualTextBase(Dataset):
     """A base class for the visual-text dataset."""
 
-    def __init__(self, split="train"):
+    def __init__(self, split="train", hf_dataname: str = None, config: dict = None):
         super().__init__()
+
         # Which part of the data to use
         self.split = split
 
+        # The name of the dataset in the huggingface
+        self.hf_dataname = hf_dataname
+
+        # The config of the dataset
+        self.config = config
+
         # The hf_dataset of the desired split.
         self.hf_dataset = None
-        # ori_columns = self.hf_dataset[0].keys()
-        # self.hf_dataset = self.hf_dataset.map(
-        #     self.to_format,
-        #     remove_columns=ori_columns,
-        #     # Uncomment only to test the function to_format
-        #     # keep_in_memory=True,
-        #     # load_from_cache_file=False,
-        #     load_from_cache_file=True,
-        # )
+
         # Convert the sample to be the format required by
-        # the LLMs, VLMs and so no
+        # the LLMs, VLMs and so on
         self.lm_format_function = None
+        # Use the visit index as the sample ID
+        self.idx = 0
+
+        # Map the dataset to the desired format
+        self.map_dataset()
+
+    def map_dataset(self):
+        """Map the dataset to the desired format."""
+
+        if self.hf_dataset is None:
+            self.hf_dataset = load_dataset(self.hf_dataname, split=self.split)
+        logging.info(
+            "   - Mapping samples to fgreason format, i.e., fgreason.dataset.base.TextSample"
+        )
+        # Make the sample to be the desired format defined
+        # in the dataset.base class
+        self.hf_dataset = self.hf_dataset.map(
+            self.batch_format,
+            batched=True,
+            batch_size=1000,
+            load_from_cache_file=True,
+            remove_columns=self.hf_dataset.column_names,
+        )
+
+        # Save some demo samples to the dataset folder
+        self.save_example_samples(num_samples=20)
+
+    # A memebsership function muse be implemented
+    def to_format(self, sample: dict):
+        """Get the sample from the given idx."""
+        raise NotImplementedError
+
+    def batch_format(self, batch_samples: List[dict]):
+        """Get the sample from the given idx."""
+        # Convert dict of lists to list of dicts
+        samples = [
+            dict(zip(batch_samples.keys(), values))
+            for values in zip(*batch_samples.values())
+        ]
+        samples = [self.to_format(sample) for sample in samples]
+
+        # Convert list of dicts back to dict of lists
+        return {key: [sample[key] for sample in samples] for key in samples[0].keys()}
 
     def save_pil_image(self, image_data, path: str, filename: str):
         """A function to save the PIL image to a file."""
@@ -92,10 +162,26 @@ class VisualTextBase(Dataset):
 
         return save_path
 
-    # A memebsership function muse be implemented
-    def to_format(self, sample: dict):
-        """Get the sample from the given idx."""
-        raise NotImplementedError
+    def save_example_samples(self, num_samples=15):
+        """
+        Save a specified number of random samples into a single JSON file.
+        """
+        output_dir = self.config["data_path"]
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Get random samples
+        sample_indices = random.sample(range(len(self.hf_dataset)), num_samples)
+        samples = [self.hf_dataset[i] for i in sample_indices]
+
+        # Prepare the filename
+        filename = f"{self.split}-demo-samples.json"
+        filepath = os.path.join(output_dir, filename)
+
+        # Save all samples to a single JSON file
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(samples, f, ensure_ascii=False, indent=2)
+
+        logging.info("   - Saved few samples as demos to %s", filepath)
 
     def __len__(self):
         return len(self.hf_dataset)

@@ -3,36 +3,34 @@ Interface of the ScienceQA dataset.
 """
 
 import os
+
 from datasets import load_dataset
 
-from projinit.config import Config
-
-from dmmrl.dataset.base import VisualTextSample, VisualTextBase
-from dmmrl.identifier import SOLKEY
+from fgreason.dataset.base import VisualTextSample, VisualTextBase
+from fgreason.identifier import OPTION_SOLUTION_PROMPT
 
 
 class ScienceQADataset(VisualTextBase):
     """A consistent interface for the ScienceQA dataset."""
 
-    def __init__(self, split="train"):
-        super().__init__(split=split)
-        self.hf_dataset = load_dataset("derek-thomas/ScienceQA", split=split)
+    def __init__(
+        self, split: str = "train", hf_dataname: str = None, config: dict = None
+    ):
 
-        self.data_path = Config().data.data_path
+        self.data_path = config["data_path"]
         self.image_path = f"{self.data_path}/images"
         os.makedirs(self.image_path, exist_ok=True)
 
-        # Use the visit index as the sample ID
-        self.idx = 0
+        super().__init__(split=split, hf_dataname=hf_dataname, config=config)
 
-        # Make the sample to be the desired format defined
-        # in the dataset.base class
-        self.hf_dataset = self.hf_dataset.map(
-            self.to_format,
-            batch_size=1,
-            load_from_cache_file=True,
-            remove_columns=self.hf_dataset.column_names,
+    def map_dataset(self):
+        """Map the dataset to the desired format."""
+
+        self.hf_dataset = load_dataset(
+            self.hf_dataname, "ScienceQA-FULL", split=self.split
         )
+
+        super().map_dataset()
 
     def to_format(self, sample: dict):
         """Get the sample from the given idx."""
@@ -40,7 +38,7 @@ class ScienceQADataset(VisualTextBase):
 
         # Create the sample
         question = sample["question"]
-        question = f"{question} (Place final selected option within {SOLKEY})."
+        question = f"{question} {OPTION_SOLUTION_PROMPT}."
         options = sample["choices"]
         image_data = sample["image"]
         q_image = None
@@ -72,13 +70,14 @@ class ScienceQADataset(VisualTextBase):
         cot_answer = f"{lecture}\n{solution}"
 
         return VisualTextSample(
-            main_id=f"{self.split}-ID{self.idx}",
+            main_id=f"ID{self.idx}",
+            split=self.split,
             question=question,
             cot_answer=cot_answer,
             groundtruth=groundtruth,
             question_images=[("image", q_image)],
-            data_info={
-                "dataset": "derek-thomas/ScienceQA",
+            sample_info={
+                "dataset": self.hf_dataname,
                 "grade": sample["grade"],
                 "subject": sample["subject"],
                 "topic": sample["topic"],
