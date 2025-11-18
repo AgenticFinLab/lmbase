@@ -37,7 +37,7 @@ data_factory = {
     "mathvision": mathvision.MathVisionDataset,
     "aokvqa": aokvqa.AOKVQADataset,
     "vqav2": vqav2.VQAv2Dataset,
-    "mscoco": mscoco.MSCOCODataset,
+    # "mscoco": mscoco.MSCOCODataset,
 }
 
 
