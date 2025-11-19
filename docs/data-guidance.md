@@ -6,6 +6,8 @@
 
 > All supported datasets are listed in `lmbase/dataset/registry.py`. For dataset-specific details, consult the comments in the respective data loader file.
 
+> Please check the `examples/test_data` for the demo coding details.
+
 
 ### Loading datasets
 
