@@ -1,5 +1,7 @@
 """
 Interface of the GSM8K dataset.
+
+The "main" set of the GSM8K dataset is downloaded by default. These the training, validation, and test splits.
 """
 
 from datasets import load_dataset

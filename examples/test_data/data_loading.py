@@ -2,11 +2,6 @@
 An unit test for the data loading.
 """
 
-import os
-import json
-import logging
-
-
 from lmbase.dataset import registry as dataset_registry
 
 

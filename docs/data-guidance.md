@@ -4,6 +4,10 @@
 
 > The data sources are powered by the [Huggingface](https://huggingface.co/) library. Users can either download the datasets manually or let the code fetch them automatically from the Hugging Face Hub.
 
+> All supported datasets are listed in `lmbase/dataset/registry.py`. For dataset-specific details, consult the comments in the respective data loader file.
+
+
+### Loading datasets
 
 One can easily load the data by using the following code:
 
