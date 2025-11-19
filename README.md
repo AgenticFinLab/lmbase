@@ -3,6 +3,7 @@
 
 > The folder named "EXPERIMENT" will be ignored by git by default. Thus, please always place experimental results under the "EXPERIMENT" folder.
 
+> Please contribute reusable code by adding it to the relevant module or creating a new one if needed. 
 
 ## Code structure
 
@@ -11,6 +12,7 @@ The structure of `lmbase` is
     .
     ├── configs                         # Configuration files
     ├── examples                        # Implemented examples
+    ├── docs                            # Documentation
     ├── lmbase                          # CodeBase
     └──── datasets                      # Datasets 
     └──── utils                         # Useful functions
