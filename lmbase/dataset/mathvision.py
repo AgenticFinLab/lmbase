@@ -41,10 +41,12 @@ class MathVisionDataset(VisualTextBase):
                     question_images.append((token, save_path))
                 else:
                     logging.warning(
-                        f"Failed to save image for {token} in sample {sample_id}"
+                        "Failed to save image for %s in sample %s",
+                        token,
+                        sample_id,
                     )
             else:
-                logging.warning(f"No decoded_image for sample {sample_id}")
+                logging.warning("No decoded_image for sample %s", sample_id)
 
         # process the options
         options = sample.get("options", [])
@@ -63,7 +65,11 @@ class MathVisionDataset(VisualTextBase):
                 )
                 question = f"{question} {MATH_SOLUTION_PROMPT}\nOptions:\n{options_str}"
             except Exception as e:
-                logging.warning(f"Failed to parse options for sample {sample_id}: {e}")
+                logging.warning(
+                    "Failed to parse options for sample %s: %s",
+                    sample_id,
+                    e,
+                )
 
         cot_answer = sample.get("solution", "") or ""
 

@@ -24,18 +24,18 @@ from lmbase.dataset import base
 def map_sample(
     sample: base.TextSample,
     system_prompt: str = None,
-    to_format: str = "messages",
+    to_format: str = "message",
     add_answer: bool = True,
     maintain_columns: list = None,
 ):
     """
-    Create the messages from the samples.
+    Create the message from the samples.
 
-    The samples will be replaced by messages named `name`.
+    The samples will be replaced by message named `name`.
     The original content of the samples will be automatically maintained.
     """
 
-    assert to_format in ["messages", "prompt_completion"]
+    assert to_format in ["message", "prompt_completion"]
 
     q = sample["question"]
     an = sample["cot_answer"]
