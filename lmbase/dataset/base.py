@@ -83,7 +83,12 @@ class VisualTextCodeSample(TextCodeSample):
 class VisualTextBase(Dataset):
     """A base class for the visual-text dataset."""
 
-    def __init__(self, split="train", hf_dataname: str = None, config: dict = None):
+    def __init__(
+        self,
+        split="train",
+        hf_dataname: str = None,
+        config: dict = None,
+    ):
         super().__init__()
 
         # Which part of the data to use

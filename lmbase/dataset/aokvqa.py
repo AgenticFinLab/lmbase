@@ -15,7 +15,10 @@ class AOKVQADataset(VisualTextBase):
     """A consistent interface for the A-OKVQA dataset."""
 
     def __init__(
-        self, split: str = "train", hf_dataname: str = None, config: dict = None
+        self,
+        split: str = "train",
+        hf_dataname: str = None,
+        config: dict = None,
     ):
         self.data_path = config["data_path"]
         self.image_path = os.path.join(self.data_path, "images")

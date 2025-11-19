@@ -1,0 +1,202 @@
+[
+  {
+    "question": "Peyton Manning throws a football 20 yards when the temperature is 50 degrees Fahrenheit, but the ball moves twice as far when the temperature is 80 degrees Fahrenheit. Last Saturday, the temperature was 50 degrees Fahrenheit, and he threw the ball twenty times. On Sunday, the temperature rose to 80 degrees Fahrenheit, and he threw the ball 30 times. Calculate the total number of yards he threw the ball in the two days. (Place final solution within \\boxed{...}).",
+    "main_id": "ID1901",
+    "split": "train",
+    "cot_answer": "On Saturday, he threw the ball 20 times, and since the temperature was 50 degrees, he could throw only 20 yards, totaling 20*20 = <<20*20=400>>400 yards.\nOn Sunday, the temperature favored him, and he threw the ball twice the distance he could throw on Saturday, which is 2*20 = <<2*20=40>>40 yards.\nIf he threw the ball 30 times, he threw for 30*40 = <<30*40=1200>>1200 yards.\nIn the two days, he threw 1200+400 = <<1200+400=1600>>1600 yards.\n#### 1600",
+    "groundtruth": "1600",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Jeff was driving to the capital city to attend a conference. At first, he was driving at 80 miles/hour for about 6 hours, then the speed limit changed and he had to slow down to 60 miles/hour, and so he drove at this speed for 4 hours. Then he made a stop at a gas station. Once the car was full of gas, he drove at 40 miles/hour the rest of the trip for 2 hours. How many miles did he travel? (Place final solution within \\boxed{...}).",
+    "main_id": "ID2187",
+    "split": "train",
+    "cot_answer": "In the first stretch he drove 80 miles/hour x 6 hours = <<80*6=480>>480 miles\nIn the second stretch he drove 60 miles/hour x 4 hours = <<60*4=240>>240 miles\nAfter the gas station he drove 40 miles/hour x 2 hours = <<40*2=80>>80 miles\nIn total he drove 480 miles + 240 miles + 80 miles = <<480+240+80=800>>800 miles\n#### 800",
+    "groundtruth": "800",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Carol is an aviation engineer deciding how much fuel to put in a jet. The empty plane needs 20 gallons of fuel per mile. Each person on the plane increases this amount by 3 gallons per mile, and each bag increases it by 2 gallons per mile. If there are 30 passengers and 5 flight crew, and each person brought two bags, how many gallons of fuel does the plane need for a 400-mile trip? (Place final solution within \\boxed{...}).",
+    "main_id": "ID744",
+    "split": "train",
+    "cot_answer": "First find the total number of people by adding the number of passengers and flight crew: 30 people + 5 people = <<30+5=35>>35 people\nThen find the total number of bags by doubling the total number of people: 35 people * 2 bags/person = <<35*2=70>>70 bags\nThen find the fuel increase caused by the people by multiplying their number by the fuel increase per person: 35 people * 3 gallons/mile/person = <<35*3=105>>105 gallons/mile\nThen multiply the number of bags by the fuel increase per bag to find the total fuel increase they cause: 70 bags * 2 gallons/mile/bag = <<70*2=140>>140 gallons/mile\nNow add the fuel increases to the base fuel consumption to find the total fuel needed per mile: 140 gallons/mile + 105 gallons/mile + 20 gallons/mile = <<140+105+20=265>>265 gallons/mile\nNow multiply the fuel consumption per mile by the number of miles flown to find the total amount of fuel needed: 265 gallons/mile * 400 miles = <<265*400=106000>>106,000 gallons of fuel\n#### 106000",
+    "groundtruth": "106000",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Tim rides his bike back and forth to work for each of his 5 workdays.  His work is 20 miles away.  He also goes for a weekend bike ride of 200 miles.    If he can bike at 25 mph how much time does he spend biking a week? (Place final solution within \\boxed{...}).",
+    "main_id": "ID20",
+    "split": "train",
+    "cot_answer": "He bikes 20*2=<<20*2=40>>40 miles each day for work\nSo he bikes 40*5=<<40*5=200>>200 miles for work\nThat means he bikes a total of 200+200=<<200+200=400>>400 miles for work\nSo he bikes a total of 400/25=<<400/25=16>>16 hours\n#### 16",
+    "groundtruth": "16",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "A pen and pencil have a total cost of $6. If the pen costs twice as much as the pencil, what is the cost of the pen? (Place final solution within \\boxed{...}).",
+    "main_id": "ID3747",
+    "split": "train",
+    "cot_answer": "Let x be the cost of the pencil.\nIf the pen costs 2 times the cost of the pencil, then it costs 2x.\nAdding the cost of the pen and pencil we get 2x + x = 3x\nSince the total cost is $6 then 3x = $6 therefore x = $6 / 3 = $2\nOne pen is equal to 2 * x which is 2 * $2 = $4\n#### 4",
+    "groundtruth": "4",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "When you take Hiram's age and then add 12, you get 4 less than twice Allyson's age. If Hiram is 40 years old, how old is Allyson? (Place final solution within \\boxed{...}).",
+    "main_id": "ID4901",
+    "split": "train",
+    "cot_answer": "If Hiram's age is 40, when you add 12, his age becomes 40+12=<<40+12=52>>52\nIf you add 4 from Hiram's age after adding twelve to his age, you get 52+4 = 56, which is twice Allyson's age.\nAllyson's age is 56/2 = <<56/2=28>>28 years\n#### 28",
+    "groundtruth": "28",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "A pet shop has 2 puppies and some kittens. A puppy costs $20, and a kitten costs $15. If the stock is worth $100, how many kittens does the pet shop have? (Place final solution within \\boxed{...}).",
+    "main_id": "ID5354",
+    "split": "train",
+    "cot_answer": "The 2 puppies cost 2 * 20 = <<2*20=40>>40 dollars\nThe stock is worth 100 dollars, meaning that the kittens cost 100 - 40 = <<100-40=60>>60 dollars\nSince the cost of a kitten is 15 dollars, the pet shop has 60/15 = <<60/15=4>>4 kittens\n#### 4",
+    "groundtruth": "4",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Marta is arranging floral centerpieces for a reception party.  Each arrangement needs to have 8 roses,12 daisies, 3 snapdragons and twice as many lilies.  The reception will have 10 tables.  How many flowers will she need in total to fill this order? (Place final solution within \\boxed{...}).",
+    "main_id": "ID1793",
+    "split": "train",
+    "cot_answer": "She needs twice as many lilies as the 3 snapdragons in the arrangement so she needs 2*3 = <<2*3=6>>6 lilies\nShe needs 8 roses, 12 daisies, 3 snapdragons and 6 lilies for a total of 8+12+3+6 = <<8+12+3+6=29>>29 flowers per arrangement\nShe needs 29 flowers per each of the 10 tables for a total of 29*10 = <<29*10=290>>290 flowers\n#### 290",
+    "groundtruth": "290",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Kevin has a shoebox filled with toads.  Every day, Kevin feeds each toad 3 worms.  It takes Kevin 15 minutes to find each worm.  If it takes Kevin 6 hours to find enough worms to feed all of his toads, how many toads does Kevin have in his shoebox? (Place final solution within \\boxed{...}).",
+    "main_id": "ID2269",
+    "split": "train",
+    "cot_answer": "If it takes 15 minutes to find each worm, then he catches 60/15 = <<60/15=4>>4 worms per hour.\nIn 6 hours, Kevin catches 4 * 6 = <<4*6=24>>24 worms.\nIf he feeds each toad 3 worms, then he has 24/3 = <<24/3=8>>8 toads in his shoebox.\n#### 8",
+    "groundtruth": "8",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Kelsey turned 25 in 1999.  Her older sister was born 3 years before Kelsey.  It's currently 2021.  How old is Kelsey's older sister? (Place final solution within \\boxed{...}).",
+    "main_id": "ID3952",
+    "split": "train",
+    "cot_answer": "Kelsey turned 25 in 1999 so she was born in 1999-25 = <<1974=1974>>1974\nKelsey's sister is older by 3 years so she was born in 1974-3 = <<1974-3=1971>>1971\nIt's currently 2021 and Kelsey's sister was born in 1971 so she is 2021-1971 = <<2021-1971=50>>50 years old\n#### 50",
+    "groundtruth": "50",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Nori had 4 boxes of crayons with 8 crayons in each box. She gave 5 crayons to Mae and also give some crayons to Lea. How many more crayons did she give to Lea than Mae if she has only 15 crayons left? (Place final solution within \\boxed{...}).",
+    "main_id": "ID2580",
+    "split": "train",
+    "cot_answer": "From the 4 boxes, Nori had 8 * 4 = <<8*4=32>>32 crayons\nAfter giving 5 crayons to Mae, she had 32 - 5 = <<32-5=27>>27 crayons left.\nIf she only has 15 crayons now, this means she gave Lea 27 - 15 = <<27-15=12>>12 crayons.\nHence, Lea has 12 - 5 = <<12-5=7>>7 more crayons than Mae.\n#### 7",
+    "groundtruth": "7",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Jaron wants to raise enough money selling candy bars to win the Nintendo Switch prize. He needs 2000 points for the Nintendo Switch. He has already sold 8 chocolate bunnies that are worth 100 points each. Each Snickers bar he sells earns 25 points. How many Snickers bars does he need to sell the win the Nintendo Switch? (Place final solution within \\boxed{...}).",
+    "main_id": "ID5115",
+    "split": "train",
+    "cot_answer": "Jaron has earned a total of 8 * 100 points = <<8*100=800>>800 points.\nTo win the Switch he needs to earn 2000 - 800 = <<2000-800=1200>>1200 points.\nTherefore, he needs to sell 1200 / 25 = <<1200/25=48>>48 Snickers bars.\n#### 48",
+    "groundtruth": "48",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "A group of security guards were hired for the night shift at a factory. The four guards agreed to a rotating schedule to cover the nine hours of the night shift. The first guard would take three hours since they were still awake, the last guard would wake up early and take two hours, and the middle two guards would split the remaining hours. How many hours will each middle guard take? (Place final solution within \\boxed{...}).",
+    "main_id": "ID7034",
+    "split": "train",
+    "cot_answer": "The first and last guard will take 3 + 2 = <<3+2=5>>5 hours of the night shift.\nThere are 9 hours in the night shift, so the middle two guards will cover 9 - 5 = <<9-5=4>>4 hours.\nEach middle guard will take 4 / 2 = <<4/2=2>>2 hours.\n#### 2",
+    "groundtruth": "2",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "A pipe is clogged so that only 2 ounces of cleaner can run through the pipe per minute. After fifteen minutes, the cleaner has unclogged it enough that 3 ounces can run through per minute. Ten minutes later, the clog is cleared enough for 4 ounces to run through per minute. How many ounces of cleaner were used after 30 minutes? (Place final solution within \\boxed{...}).",
+    "main_id": "ID4481",
+    "split": "train",
+    "cot_answer": "For 15 minutes at 2 ounces per minute, 2 * 15 = <<2*15=30>>30 ounces were used.\nFor the next 10 minutes at 3 ounces per minute, 3 * 10 = <<3*10=30>>30 ounces were used.\nThere are 30 - 15 - 10 = <<30-15-10=5>>5 minutes remaining.\nFor the next 5 minutes at 4 ounces per minute, 4 * 5 = <<4*5=20>>20 ounces were used.\nAfter 30 minutes, 30 + 30 + 20 = <<30+30+20=80>>80 ounces of cleaner were used.\n#### 80",
+    "groundtruth": "80",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Trevor buys several bouquets of carnations. The first included 9 carnations; the second included 14 carnations; the third included 13 carnations. What is the average number of carnations in the bouquets? (Place final solution within \\boxed{...}).",
+    "main_id": "ID269",
+    "split": "train",
+    "cot_answer": "The sum is 9+14+13=<<9+14+13=36>>36.\nThere are 3 bouquets.\nThe average is 36/3=<<36/3=12>>12.\n#### 12",
+    "groundtruth": "12",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Matt is playing basketball. In the first quarter, he made 2-point shots four times and 3-point shots twice. How many points did he score for that quarter? (Place final solution within \\boxed{...}).",
+    "main_id": "ID1069",
+    "split": "train",
+    "cot_answer": "His total score for the 2-point shots is 2 x 4 = <<2*4=8>>8.\nHis total score for the 3-point shots is 3 x 2 = <<3*2=6>>6.\nHis total score for the first quarter is 8 + 6 = <<8+6=14>>14.\n#### 14",
+    "groundtruth": "14",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "George donated half his monthly income to charity and spent $20 from the other half on groceries. If he now has $100 left, how much was his monthly income? (Place final solution within \\boxed{...}).",
+    "main_id": "ID6545",
+    "split": "train",
+    "cot_answer": "Half his monthly income is $100+$20 = $<<100+20=120>>120\nHis monthly income therefore is 2*$120 = $<<2*120=240>>240\n#### 240",
+    "groundtruth": "240",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Ginger likes to make cakes for every holiday for people.  She has 2 children, each of whom she bakes a cake for on their birthdays, Christmas, Easter, and Halloween.  She has a husband for whom she makes a cake on these same holidays, as well as on their anniversary and Valentine's Day. Lastly, she makes both her parents cakes as well, but only for their birthdays since they live far away.  How many cakes does she make in 10 years? (Place final solution within \\boxed{...}).",
+    "main_id": "ID5250",
+    "split": "train",
+    "cot_answer": "Ginger has 2 children whom she bakes for 4 times a year, for 2*4= <<2*4=8>>8 cakes.\nShe makes her husband 6 cakes a year.\nShe makes each of her 2 parents a cake for 2*1=<<2*1=2>>2 cakes.\nOn a yearly basis, she therefore makes 8+6+2= <<8+6+2=16>>16 cakes.\nIn 10 years, she would make 16*10=<<16*10=160>>160 cakes.\n#### 160",
+    "groundtruth": "160",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Janet takes two multivitamins and 3 calcium supplements every day for the first 2 weeks of the month. For the last two weeks of the month, she runs low on calcium supplements and only takes one per day. How many pills does Janet take in that month? (Place final solution within \\boxed{...}).",
+    "main_id": "ID6842",
+    "split": "train",
+    "cot_answer": "First find the number of pills Janet takes every day for the first 2 weeks: 2 pills/day + 3 pills/day = <<2+3=5>>5 pills/day\nThen find the number of days in 2 weeks: 2 weeks * 7 days/week = <<2*7=14>>14 days\nThen multiply that number by the number of pills she takes daily to find the total number of pills she takes in the first 2 weeks: 5 pills/day * 14 days = <<5*14=70>>70 pills\nThen find the number of pills Janet takes every day for the last 2 weeks: 2 pills/day + 1 pill/day = <<2+1=3>>3 pills/day\nThen multiply that number by the number of days in 2 weeks to find the total number of pills she takes in the last 2 weeks: 3 pills/day * 14 days = <<3*14=42>>42 pills\nThen add the number of pills she took in the first and last two weeks to find the total number of pills she took: 42 pills + 70 pills = <<42+70=112>>112 pills\n#### 112",
+    "groundtruth": "112",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  },
+  {
+    "question": "Rita put a $120 elliptical machine on layaway at her local sports good store. After making a down payment equal to half the cost of the machine, she completely forgot about it. Sometime before the pick-up date, a store employee called offered to waive all layaway fees and taxes on the condition that Rita paid the balance within 10 days. What is the daily minimum amount, in dollars, that Rita must pay to own the elliptical machine? (Place final solution within \\boxed{...}).",
+    "main_id": "ID7352",
+    "split": "train",
+    "cot_answer": "The down payment Rita made was 120/2 = <<120/2=60>>60 dollars.\nThe balance was therefore 120 - 60 = <<120-60=60>>60 dollars.\nTo pay off the balance within 10 days, Rita must make payments of 60/10 = <<60/10=6>>6 dollars per day\n#### 6",
+    "groundtruth": "6",
+    "sample_info": {
+      "dataset": "openai/gsm8k"
+    }
+  }
+]
