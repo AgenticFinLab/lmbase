@@ -16,3 +16,5 @@ tenacity
 txtai
 langchain_openai
 langchain
+dotenv
+typing
