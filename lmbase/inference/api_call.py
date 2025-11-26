@@ -8,8 +8,12 @@ from typing import Optional
 from langchain_openai import ChatOpenAI
 
 
-def aihubmix_api_call(prompt: str, model_id: str) -> str:
-
+def aihubmix_api_call(
+    prompt: str,
+    model_id: str,
+    generation_config: dict,
+) -> str:
+    """Call the AIHUBMIX API with the given prompt and model ID."""
     load_dotenv()
     AIHUBMIX_API_KEY = os.getenv("AIHUBMIX_API_KEY")
     AIHUBMIX_BASE_URL = os.getenv("AIHUBMIX_BASE_URL")
