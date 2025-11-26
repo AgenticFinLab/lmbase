@@ -7,16 +7,88 @@ It handles provider-specific configuration, authentication, and client initializ
 
 The module supports both direct OpenAI client usage and LangChain ChatOpenAI integration
 for different use cases in AI application development.
-
-
 """
 
 import os
 import random
 from openai import OpenAI
 from dotenv import load_dotenv
-from typing import Optional, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from langchain_openai import ChatOpenAI
+
+from lmbase.inference.base import (
+    LLMProvider,
+    Message,
+    LLMRequest,
+    LLMResponse,
+    BaseLLMClient,
+    detect_provider,
+)
+
+
+class AIHubMixClient(BaseLLMClient):
+    """
+    AIHubMix-specific LLM client implementation.
+
+    AIHubMix is a unified API platform that provides access to multiple LLM providers
+    through a single interface.
+    """
+
+    def initialize_client(self) -> OpenAI:
+        """Initialize and return the OpenAI client configured for AIHubMix."""
+        self.client = OpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+        )
+        return self.client
+
+    def call(self, request: LLMRequest) -> LLMResponse:
+        """
+        Execute an LLM inference call through AIHubMix.
+
+        Args:
+            request: Standardized LLM request parameters
+
+        Returns:
+            Standardized LLM response
+
+        Raises:
+            Exception: For API communication errors or authentication failures
+        """
+        self.validate_request(request)
+
+        if self.client is None:
+            self.initialize_client()
+
+        # Convert to API format and ensure seed is set
+        api_params = request.to_api_format()
+        if api_params.get("seed") is None:
+            api_params["seed"] = random.randint(1, 1000000000)
+
+        # Execute chat completion
+        completion = self.client.chat.completions.create(**api_params)
+
+        # Extract response content
+        content = completion.choices[0].message.content
+        if content is None:
+            content = ""
+
+        # Build standardized response
+        usage_dict = {}
+        if completion.usage:
+            usage_dict = {
+                "prompt_tokens": completion.usage.prompt_tokens,
+                "completion_tokens": completion.usage.completion_tokens,
+                "total_tokens": completion.usage.total_tokens,
+            }
+
+        return LLMResponse(
+            content=content,
+            model=completion.model,
+            usage=usage_dict,
+            finish_reason=completion.choices[0].finish_reason or "stop",
+            raw_response=completion,
+        )
 
 
 def build_llm_aihubmix(
@@ -28,9 +100,9 @@ def build_llm_aihubmix(
     frequency_penalty: float = 0.0,
     presence_penalty: float = 0.0,
     seed: Optional[int] = None,
-    messages: Optional[list] = None,
+    messages: Optional[List[Dict[str, str]]] = None,
     return_client_only: bool = False,
-) -> Any:
+) -> Union[AIHubMixClient, str]:
     """
     Build and configure an AIHubMix LLM client with flexible usage options.
 
@@ -53,14 +125,14 @@ def build_llm_aihubmix(
         frequency_penalty (float): Penalizes frequently used tokens (-2.0 to 2.0).
         presence_penalty (float): Penalizes new token presence (-2.0 to 2.0).
         seed (Optional[int]): Random seed for reproducible results. Auto-generated if None.
-        messages (Optional[list]): Pre-formatted message list for chat completion.
+        messages (Optional[List[Dict]]): Pre-formatted message list for chat completion.
                                   If provided, overrides prompt parameter.
         return_client_only (bool): If True, returns configured client instead of
                                   executing completion.
 
     Returns:
-        Union[str, OpenAI]:
-            - If return_client_only=True: Configured OpenAI client instance
+        Union[AIHubMixClient, str]:
+            - If return_client_only=True: Configured AIHubMixClient instance
             - Otherwise: Generated text response as string
 
     Raises:
@@ -94,11 +166,9 @@ def build_llm_aihubmix(
     if not AIHUBMIX_BASE_URL:
         raise ValueError("AIHUBMIX_BASE_URL environment variable is required")
 
-    # Create and configure OpenAI client for AIHubMix service
-    client = OpenAI(
-        base_url=AIHUBMIX_BASE_URL,  # AIHubMix API endpoint URL
-        api_key=AIHUBMIX_API_KEY,  # Authentication API key
-    )
+    # Create AIHubMix client
+    client = AIHubMixClient(api_key=AIHUBMIX_API_KEY, base_url=AIHUBMIX_BASE_URL)
+    client.initialize_client()
 
     # If only client is requested, return the configured client
     if return_client_only:
@@ -113,30 +183,28 @@ def build_llm_aihubmix(
             )
 
         # Create messages list from prompt
-        messages = [
-            {"role": "user", "content": prompt},
-            # Optional: Add system/developer message here
-            # {"role": "developer", "content": "Your system prompt"},
+        message_objs = [Message(role="user", content=prompt)]
+    else:
+        # Convert dictionary messages to Message objects
+        message_objs = [
+            Message(role=msg["role"], content=msg["content"]) for msg in messages
         ]
 
-    # Generate random seed if not provided
-    if seed is None:
-        seed = random.randint(1, 1000000000)
-
-    # Execute chat completion with configured parameters
-    completion = client.chat.completions.create(
-        model=model_id,  # Target model ID from AIHubMix catalog
-        messages=messages,  # Conversation messages
-        temperature=temperature,  # Controlled randomness
-        max_tokens=max_tokens,  # Response length limit
-        top_p=top_p,  # Probability mass for sampling
-        frequency_penalty=frequency_penalty,  # Reduce token repetition
-        presence_penalty=presence_penalty,  # Encourage new topics
-        seed=seed,  # Random seed for reproducibility
+    # Create standardized request
+    request = LLMRequest(
+        model=model_id,
+        messages=message_objs,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=top_p,
+        frequency_penalty=frequency_penalty,
+        presence_penalty=presence_penalty,
+        seed=seed,
     )
 
-    # Extract and return the text content from the first choice
-    return completion.choices[0].message.content
+    # Execute the call and return content
+    response = client.call(request)
+    return response.content
 
 
 def build_llm(

@@ -1,150 +1,299 @@
 """
-Test Script for LLM API Call Functions
+Comprehensive Test Examples for LLM API Calls
 
-This module provides basic testing for the LLM client builder functions
-located in lmbase/inference/api_call.py. It tests both AIHubMix integration
-and multi-provider LLM client construction with simple test cases.
+This module demonstrates various usage patterns for the LLM client builders
+and base classes. It shows how to use different providers, request formats,
+and response handling strategies.
 
+Before running these examples, ensure you have set the required environment
+variables for your chosen providers.
 """
 
 import os
-import sys
 from dotenv import load_dotenv
 from lmbase.inference.api_call import build_llm_aihubmix, build_llm
+from lmbase.inference.base import (
+    LLMProvider,
+    Message,
+    LLMRequest,
+    LLMResponse,
+    detect_provider,
+)
 
 
-def test_aihubmix_completion_basic():
+def example_1_basic_aihubmix_usage():
     """
-    Test basic AIHubMix completion functionality with simple prompt.
+    Example 1: Basic AIHubMix usage with simple prompt.
+
+    Demonstrates the most straightforward way to use AIHubMix with
+    a simple text prompt and default parameters.
     """
-    print("Testing AIHubMix Basic Completion")
+    print("=== Example 1: Basic AIHubMix Usage ===")
 
     try:
+        # Simple one-line call with just model and prompt
         response = build_llm_aihubmix(
-            model_id="DeepSeek-V3.2-Exp",
-            prompt="请介绍一下蓝天格锐案件",
-            temperature=0.1,
-            max_tokens=5000,
+            model_id="gpt-3.5-turbo",  # Model from AIHubMix catalog
+            prompt="Explain the concept of machine learning in one sentence.",
         )
 
-        # Basic validation
-        assert response is not None
-        assert isinstance(response, str)
-        assert len(response) > 0
-
-        print("Basic completion test passed")
         print(f"Response: {response}")
-        return True
+        print()
 
     except Exception as e:
-        print(f"Basic completion test failed: {e}")
-        return False
+        print(f"Error in example 1: {e}")
+        print(
+            "Make sure AIHUBMIX_API_KEY and AIHUBMIX_BASE_URL are set in your .env file"
+        )
+        print()
 
 
-def test_aihubmix_client_only():
+def example_2_advanced_aihubmix_with_messages():
     """
-    Test AIHubMix client-only configuration without execution.
+    Example 2: Advanced AIHubMix usage with structured messages.
+
+    Shows how to use the messages parameter for multi-turn conversations
+    and system prompts with custom generation parameters.
     """
-    print("Testing AIHubMix Client-Only Mode")
+    print("=== Example 2: Advanced AIHubMix with Structured Messages ===")
 
     try:
-        client = build_llm_aihubmix(
-            model_id="DeepSeek-V3.2-Exp", return_client_only=True
+        # Structured conversation with system message and custom parameters
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful math tutor. Explain concepts clearly and provide examples.",
+            },
+            {"role": "user", "content": "What is the Pythagorean theorem?"},
+        ]
+
+        response = build_llm_aihubmix(
+            model_id="gpt-4",
+            messages=messages,
+            temperature=0.3,  # Lower temperature for more deterministic output
+            max_tokens=500,  # Limit response length
+            top_p=0.9,  # Use nucleus sampling
+            seed=42,  # Fixed seed for reproducible results
         )
 
-        # Validate client object
-        assert client is not None
-        assert hasattr(client, "chat")
-        assert hasattr(client.chat.completions, "create")
-
-        print("Client-only test passed")
-        return True
+        print(f"Math Tutor Response: {response}")
+        print()
 
     except Exception as e:
-        print(f"Client-only test failed: {e}")
-        return False
+        print(f"Error in example 2: {e}")
+        print()
 
 
-def test_build_llm_different_providers():
+def example_3_aihubmix_client_reuse():
     """
-    Test build_llm function with different provider configurations.
-    """
-    print("Testing build_llm with different providers")
+    Example 3: AIHubMix client reuse for multiple requests.
 
-    test_cases = [
-        # (model_name, description)
-        ("gpt-3.5-turbo", "OpenAI model"),
-        ("deepseek-coder", "DeepSeek model"),
-        ("qwen-plus", "Qwen model"),
-        ("doubao-7b", "Doubao model"),
+    Demonstrates how to get a client instance and reuse it for
+    multiple API calls, which is more efficient for batch processing.
+    """
+    print("=== Example 3: AIHubMix Client Reuse ===")
+
+    try:
+        # Get the client instance
+        client = build_llm_aihubmix("gpt-3.5-turbo", return_client_only=True)
+
+        # Prepare multiple requests using the base classes
+        requests = [
+            LLMRequest.from_simple_prompt(
+                model="gpt-3.5-turbo",
+                prompt="What is the capital of France?",
+                temperature=0.1,
+            ),
+            LLMRequest.from_simple_prompt(
+                model="gpt-3.5-turbo",
+                prompt="Explain quantum computing briefly.",
+                temperature=0.5,
+            ),
+        ]
+
+        # Execute multiple requests with the same client
+        for i, request in enumerate(requests, 1):
+            response = client.call(request)
+            print(f"Response {i}: {response.content}")
+            print(f"Tokens used: {response.total_tokens}")
+            print()
+
+    except Exception as e:
+        print(f"Error in example 3: {e}")
+        print()
+
+
+def example_4_langchain_integration():
+    """
+    Example 4: LangChain integration with multiple providers.
+
+    Shows how to use the build_llm function to create LangChain
+    ChatOpenAI clients for different providers.
+    """
+    print("=== Example 4: LangChain Integration ===")
+
+    # Test different providers (comment out ones you don't have API keys for)
+    providers_to_test = [
+        # ("doubao-model-name", "Doubao"),  # Uncomment if you have Doubao API key
+        # ("deepseek-coder", "DeepSeek"),   # Uncomment if you have DeepSeek API key
+        ("gpt-3.5-turbo", "OpenAI"),  # Requires OPENAI_API_KEY
+        # ("qwen-plus", "Qwen")             # Uncomment if you have DASHSCOPE_API_KEY
     ]
 
-    passed_tests = 0
-
-    for model_name, description in test_cases:
+    for model_name, provider_name in providers_to_test:
         try:
-            # Skip if required API keys are not available
-            if "doubao" in model_name.lower() and not os.getenv("DOUBAO_API_KEY"):
-                print(f"Skipping {description} - DOUBAO_API_KEY not set")
-                continue
-            elif "deepseek" in model_name.lower() and not os.getenv("DEEPSEEK_API_KEY"):
-                print(f"Skipping {description} - DEEPSEEK_API_KEY not set")
-                continue
-            elif "gpt" in model_name.lower() and not os.getenv("OPENAI_API_KEY"):
-                print(f"Skipping {description} - OPENAI_API_KEY not set")
-                continue
-            elif "qwen" in model_name.lower() and not os.getenv("DASHSCOPE_API_KEY"):
-                print(f"Skipping {description} - DASHSCOPE_API_KEY not set")
-                continue
+            print(f"Testing {provider_name} with model {model_name}:")
 
-            # Test client creation
-            llm_client = build_llm(model_override=model_name, temperature=0.1)
+            # Build the LangChain client
+            llm = build_llm(model_override=model_name, temperature=0.1)
 
-            assert llm_client is not None
-            assert hasattr(llm_client, "invoke")
-
-            print(f"{description} test passed")
-            passed_tests += 1
+            # Simple test call
+            response = llm.invoke("Say 'Hello World' in a creative way.")
+            print(f"Response: {response.content}")
+            print()
 
         except Exception as e:
-            print(f"{description} test failed: {e}")
+            print(f"Error with {provider_name}: {e}")
+            print("Make sure the required API key is set in your environment")
+            print()
 
-    return passed_tests > 0
 
-
-def main():
+def example_5_comprehensive_base_classes():
     """
-    Main test execution function.
-    Runs all test cases and reports overall results.
+    Example 5: Comprehensive base class usage.
+
+    Demonstrates the full power of the base classes for creating
+    complex requests and handling detailed responses.
     """
-    print("Starting LLM API Call Tests")
-    print("=" * 50)
+    print("=== Example 5: Comprehensive Base Class Usage ===")
 
-    # Load environment variables for API keys
-    load_dotenv()
+    try:
+        # Create a complex conversation with multiple messages
+        messages = [
+            Message(role="system", content="You are a knowledgeable historian."),
+            Message(role="user", content="Tell me about ancient Rome."),
+            Message(
+                role="assistant", content="Ancient Rome was a powerful civilization..."
+            ),
+            Message(
+                role="user",
+                content="What were their major contributions to engineering?",
+            ),
+        ]
 
-    # Run test cases
-    test_results = []
+        # Create a detailed request
+        request = LLMRequest(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=800,
+            top_p=0.95,
+            frequency_penalty=0.5,
+            presence_penalty=0.3,
+            stop=["\n\n", "###"],  # Stop sequences
+            seed=12345,
+        )
 
-    test_results.append(test_aihubmix_completion_basic())
-    test_results.append(test_aihubmix_client_only())
-    # test_results.append(test_build_llm_different_providers())
+        # Get client and execute request
+        client = build_llm_aihubmix("gpt-3.5-turbo", return_client_only=True)
+        response = client.call(request)
 
-    # Print summary
-    print("\n" + "=" * 50)
-    print("Test Summary:")
-    passed = sum(test_results)
-    total = len(test_results)
-    print(f"Passed: {passed}/{total}")
+        # Demonstrate response properties
+        print(f"Content: {response.content}")
+        print(f"Model: {response.model}")
+        print(f"Finish Reason: {response.finish_reason}")
+        print(f"Token Usage: {response.usage}")
+        print(f"Prompt Tokens: {response.prompt_tokens}")
+        print(f"Completion Tokens: {response.completion_tokens}")
+        print(f"Total Tokens: {response.total_tokens}")
+        print()
 
-    if passed == total:
-        print("All tests passed successfully")
-    else:
-        print("Some tests failed")
+        # Convert to dictionary
+        response_dict = response.to_dict()
+        print(f"Response as dict: {list(response_dict.keys())}")
+        print()
 
-    return passed == total
+    except Exception as e:
+        print(f"Error in example 5: {e}")
+        print()
+
+
+def example_6_provider_detection():
+    """
+    Example 6: Provider detection functionality.
+
+    Shows how to use the provider detection utilities to
+    automatically determine the provider from model names.
+    """
+    print("=== Example 6: Provider Detection ===")
+
+    test_models = [
+        "doubao-7b-chat",
+        "deepseek-coder-33b-instruct",
+        "gpt-4-turbo-preview",
+        "qwen-plus",
+        "aihubmix-special-model",
+        "unknown-model-v1",
+    ]
+
+    for model in test_models:
+        provider = detect_provider(model)
+        print(f"Model: {model:30} -> Provider: {provider.value}")
+
+    print()
+
+
+def example_7_error_handling():
+    """
+    Example 7: Comprehensive error handling.
+
+    Demonstrates proper error handling patterns for different
+    types of failures that can occur with LLM API calls.
+    """
+    print("=== Example 7: Error Handling ===")
+
+    # Test 1: Missing required parameters
+    try:
+        response = build_llm_aihubmix("gpt-3.5-turbo")  # Missing prompt/messages
+    except ValueError as e:
+        print(f"Expected error caught: {e}")
+
+    # Test 2: Invalid parameter values
+    try:
+        response = build_llm_aihubmix(
+            model_id="gpt-3.5-turbo",
+            prompt="Test",
+            temperature=2.5,  # Invalid temperature
+        )
+    except Exception as e:
+        print(f"Parameter validation error: {e}")
+
+    print("Error handling examples completed.")
+    print()
 
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    """
+    Main execution block that runs all examples.
+
+    Load environment variables and execute each example
+    sequentially to demonstrate the full capabilities of
+    the LLM inference system.
+    """
+    # Load environment variables from .env file
+    load_dotenv()
+
+    print("LLM Inference API Call Examples")
+    print("=" * 50)
+    print()
+
+    # Run all examples
+    example_1_basic_aihubmix_usage()
+    example_2_advanced_aihubmix_with_messages()
+    example_3_aihubmix_client_reuse()
+    # example_4_langchain_integration()
+    example_5_comprehensive_base_classes()
+    example_6_provider_detection()
+    example_7_error_handling()
+
+    print("All examples completed!")
