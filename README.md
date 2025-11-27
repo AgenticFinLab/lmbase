@@ -22,3 +22,19 @@ The structure of `lmbase` is
 ## Code guidance
 
 Check the `docs` directory for more details about how to use each module of the codebase.
+
+
+## Using the `.env.example` File
+
+This repository provides a `.env.example` file to help you set up your environment variables required for running code (such as API keys and custom endpoints). To get started:
+
+1. **Copy** the `.env.example` file and rename it to `.env` in the root directory of your project:
+   ```
+   cp .env.example .env
+   ```
+
+2. **Edit** the `.env` file and fill in your own credentials and variable values as needed.
+
+3. Many scripts (such as those in the `examples/` directory) will automatically load environment variables using [python-dotenv](https://github.com/theskumar/python-dotenv) or similar libraries.
+
+> **Note:** Never commit actual credentials or secrets to version control—`.env.example` contains only placeholder values for safety.
