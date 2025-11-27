@@ -10,8 +10,9 @@ for different use cases in AI application development.
 """
 
 import os
-from openai import OpenAI
 from typing import Any
+
+from openai import OpenAI
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
