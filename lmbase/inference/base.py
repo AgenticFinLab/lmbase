@@ -8,6 +8,7 @@ We support two methods:
 
 """
 
+import time
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from abc import ABC, abstractmethod
@@ -19,9 +20,9 @@ class InferCost:
     Cost of the inference.
     """
 
-    time: float
+    time_used: float
     prompt_tokens: int
-    generation_tokens: int
+    completion_tokens: int
 
     extras: Dict[str, Any] = field(default_factory=dict)
 
@@ -97,7 +98,7 @@ class BaseLMAPIInference(ABC):
         """Initialize the client."""
 
     @abstractmethod
-    def create_messages(self, inputs: List[InferInput], **kwargs) -> Any:
+    def create_messages(self, infer_input: InferInput, **kwargs) -> Any:
         """Create the messages for the LLM.
         For example, use the ChatPromptTemplate.
         """
@@ -105,14 +106,16 @@ class BaseLMAPIInference(ABC):
     @abstractmethod
     def inference(
         self,
-        inputs: List[InferInput],
-    ) -> List[InferOutput]:
+        messages: Any,
+    ) -> InferOutput:
         """Synthesize the plans from the data samples."""
 
-    def run(self, inputs: List[InferInput], **kwargs) -> List[InferOutput]:
+    def run(self, infer_input: InferInput, **kwargs) -> InferOutput:
         """Run the synthesizer on the data samples."""
 
         # convert the input to the target messages required by different APIs.
-        messages = self.create_messages(inputs, **kwargs)
-
-        return self.inference(messages, **kwargs)
+        messages = self.create_messages(infer_input, **kwargs)
+        start = time.time()
+        output = self.inference(messages, **kwargs)
+        output.cost.time_used = time.time() - start
+        return output
