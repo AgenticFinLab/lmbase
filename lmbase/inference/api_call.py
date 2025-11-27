@@ -82,6 +82,8 @@ class LangChainAPIInference(BaseLMAPIInference):
 
 
 class AIHubMixAPIInference(BaseLMAPIInference):
+    """AIHubMix-specific LLM inference implementation."""
+
     def __init__(self, lm_name, generation_config):
         super().__init__(lm_name, generation_config)
         self.base_url = os.getenv("AIHUBMIX_BASE_URL") or ""
