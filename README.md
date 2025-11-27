@@ -11,11 +11,12 @@ The structure of `lmbase` is
 
     .
     ├── configs                         # Configuration files
-    ├── examples                        # Implemented examples
+    ├── examples                        # Example scripts and usage (for users)
     ├── docs                            # Documentation
-    ├── lmbase                          # CodeBase
-    └──── datasets                      # Datasets 
-    └──── utils                         # Useful functions
+    ├── lmbase                          # Core library
+    │   ├── datasets                    # Built-in datasets and loaders
+    │   ├── inference                   # Inference APIs and wrappers
+    │   └── utils                       # Utility functions
 
 
 ## Code guidance
