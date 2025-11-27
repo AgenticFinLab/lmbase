@@ -1,12 +1,9 @@
 """
 LLM Client Builder for Unified Provider Selection
 
-This module provides a unified interface for building LLM clients across multiple
-AI service providers including AIHubMix, Doubao, DeepSeek, OpenAI, and Qwen.
-It handles provider-specific configuration, authentication, and client initialization.
+This module provides a unified interface for building LLM clients across multiple AI service providers including AIHubMix, Doubao, DeepSeek, OpenAI, and Qwen. It handles provider-specific configuration, authentication, and client initialization.
 
-The module supports both direct OpenAI client usage and LangChain ChatOpenAI integration
-for different use cases in AI application development.
+The module supports both direct OpenAI client usage and LangChain ChatOpenAI integration for different use cases in AI application development.
 """
 
 import os
