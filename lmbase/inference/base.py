@@ -9,6 +9,7 @@ We support two methods:
 """
 
 import time
+import os
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from abc import ABC, abstractmethod
@@ -56,13 +57,13 @@ class InferOutput:
     inference calls, regardless of the provider.
 
     Attributes:
-        prompt (str): The input prompt directly used for the inference request
+        prompt (list): The input messages or prompt directly used for the inference request
         response (str): The generated text content from the LLM
         usages (Dict[str, int]): Token usage statistics for the request,
          In general, the usages should include the `time_cost`, `prompt_token_cost`, and `generation_token_cost`.
     """
 
-    prompt: str
+    prompt: list
     response: str
     raw_response: str
 
@@ -82,40 +83,44 @@ class BaseLMAPIInference(ABC):
 
     def __init__(
         self,
-        lm_name: str,
-        generation_config: dict,
+        lm_name: str=None, 
+        base_url: str=None, 
+        api_key:str=None,
+        generation_config: dict={},
+         **kwargs
+        
     ):
-        self.lm_name = lm_name
-        self.generation_config = generation_config
-
-        # In general, most API platforms requires the creation of a client.
-        # In special cases, such as the langchain, we should define a term such as ChatOpenAI and then invoke it for the response.
-        # For simplicity, we use the consistent term client.
+        self.lm_name = lm_name or os.getenv('LMBASE_LM_NAME')
+        self.base_url = base_url or os.getenv('LMBASE_BASE_URL')
+        self.api_key = api_key or os.getenv('LMBASE_API_KEY')
+        self.generation_config = generation_config 
         self.client = None
+        self._initialize_client()
 
     @abstractmethod
-    def initialize_client(self, **kwargs):
+    def _initialize_client(self):
         """Initialize the client."""
 
     @abstractmethod
-    def create_messages(self, infer_input: InferInput, **kwargs) -> Any:
+    def _create_messages(self, infer_input: InferInput, **kwargs) -> Any:
         """Create the messages for the LLM.
         For example, use the ChatPromptTemplate.
         """
+    
+    def run(self, infer_input: InferInput, **kwargs) -> InferOutput:
+        """Run the synthesizer on the data samples."""
+
+        # convert the input to the target messages required by different APIs.
+        messages = self._create_messages(infer_input, **kwargs)
+        start = time.time()
+        output = self._inference(messages, **kwargs)
+        output.cost.time_used = time.time() - start
+        return output
 
     @abstractmethod
-    def inference(
+    def _inference(
         self,
         messages: Any,
     ) -> InferOutput:
         """Synthesize the plans from the data samples."""
 
-    def run(self, infer_input: InferInput, **kwargs) -> InferOutput:
-        """Run the synthesizer on the data samples."""
-
-        # convert the input to the target messages required by different APIs.
-        messages = self.create_messages(infer_input, **kwargs)
-        start = time.time()
-        output = self.inference(messages, **kwargs)
-        output.cost.time_used = time.time() - start
-        return output
