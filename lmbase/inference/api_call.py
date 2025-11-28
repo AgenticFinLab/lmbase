@@ -10,6 +10,7 @@ import os
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import BaseMessage
 
 from lmbase.inference.base import InferCost, InferInput, InferOutput, BaseLMAPIInference
 
@@ -29,7 +30,7 @@ class LangChainAPIInference(BaseLMAPIInference):
         super().__init__(lm_name=lm_name, generation_config=generation_config)
         base_urls = {
             "doubao": "https://ark.cn-beijing.volces.com/api/v3",
-            "deepseek": "https://api.deepseek.cn/v1",
+            "deepseek": "https://api.deepseek.com/v1",
             "openai": "https://api.openai.com/v1",
             "qwen": "https://ark.cn-beijing.volces.com/api/v3",
         }
@@ -37,6 +38,7 @@ class LangChainAPIInference(BaseLMAPIInference):
         base_model = "OPENAI" if "gpt" in model_type else model_type
         self.base_url = base_urls[model_type.lower()]
         self.api_key = os.getenv(f"{base_model.upper()}_API_KEY")
+        self._initialize_client()
 
     def _initialize_client(self):
         self.client = ChatOpenAI(
@@ -49,7 +51,7 @@ class LangChainAPIInference(BaseLMAPIInference):
         self,
         infer_input: InferInput,
         **kwargs,
-    ) -> ChatPromptTemplate:
+    ) -> list[BaseMessage]:
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", infer_input.system_msg),

@@ -89,7 +89,6 @@ class BaseLMAPIInference(ABC):
         self.lm_name = lm_name
         self.generation_config = generation_config
         self.client = None
-        self._initialize_client()
 
     @abstractmethod
     def _initialize_client(self):
@@ -107,7 +106,7 @@ class BaseLMAPIInference(ABC):
         # convert the input to the target messages required by different APIs.
         messages = self._create_messages(infer_input, **kwargs)
         start = time.time()
-        output = self._inference(messages, **kwargs)
+        output = self._inference(messages)
         output.cost.time_used = time.time() - start
         return output
 
