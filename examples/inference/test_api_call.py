@@ -8,14 +8,14 @@ from dotenv import load_dotenv
 
 if __name__ == "__main__":
     load_dotenv()
-    api_call = LangChainAPIInference()
+    api_call = LangChainAPIInference(lm_name="deepseek-chat")
 
     ii = InferInput(
-        system_msg="you are a repeater, you should replay what the use say",
-        user_msg="hello world",
+        system_msg="you are a repeater, you should replay what the xiaoming say",
+        user_msg="xiaoming said:{xiaoming_words}",
     )
 
-    result = api_call.run(ii)
+    result = api_call.run(ii, xiaoming_words="ni hao")
     print("prompt:", result.prompt)
     print("response:", result.response)
     print("raw_response:", result.raw_response)
