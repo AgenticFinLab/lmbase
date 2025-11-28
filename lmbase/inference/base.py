@@ -83,17 +83,12 @@ class BaseLMAPIInference(ABC):
 
     def __init__(
         self,
-        lm_name: str=None, 
-        base_url: str=None, 
-        api_key:str=None,
-        generation_config: dict={},
-         **kwargs
-        
+        lm_name: str,
+        generation_config: dict = None,
+        **kwargs,
     ):
-        self.lm_name = lm_name or os.getenv('LMBASE_LM_NAME')
-        self.base_url = base_url or os.getenv('LMBASE_BASE_URL')
-        self.api_key = api_key or os.getenv('LMBASE_API_KEY')
-        self.generation_config = generation_config 
+        self.lm_name = lm_name
+        self.generation_config = generation_config
         self.client = None
         self._initialize_client()
 
@@ -106,7 +101,7 @@ class BaseLMAPIInference(ABC):
         """Create the messages for the LLM.
         For example, use the ChatPromptTemplate.
         """
-    
+
     def run(self, infer_input: InferInput, **kwargs) -> InferOutput:
         """Run the synthesizer on the data samples."""
 
@@ -123,4 +118,3 @@ class BaseLMAPIInference(ABC):
         messages: Any,
     ) -> InferOutput:
         """Synthesize the plans from the data samples."""
-

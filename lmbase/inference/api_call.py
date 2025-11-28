@@ -6,6 +6,8 @@ This module provides a unified interface for building LLM clients across multipl
 The module supports both direct OpenAI client usage and LangChain ChatOpenAI integration for different use cases in AI application development.
 """
 
+import os
+
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -20,18 +22,27 @@ class LangChainAPIInference(BaseLMAPIInference):
     """
 
     def __init__(
-        self, lm_name=None, base_url=None, api_key=None, generation_config=None
+        self,
+        lm_name=None,
+        generation_config=None,
     ):
-        super().__init__(
-            lm_name=lm_name,
-            base_url=base_url,
-            api_key=api_key,
-            generation_config=generation_config,
-        )
+        super().__init__(lm_name=lm_name, generation_config=generation_config)
+        base_urls = {
+            "doubao": "https://ark.cn-beijing.volces.com/api/v3",
+            "deepseek": "https://api.deepseek.cn/v1",
+            "openai": "https://api.openai.com/v1",
+            "qwen": "https://ark.cn-beijing.volces.com/api/v3",
+        }
+        model_type = self.lm_name.split("-")[0].lower()
+        base_model = "OPENAI" if "gpt" in model_type else model_type
+        self.base_url = base_urls[model_type.lower()]
+        self.api_key = os.getenv(f"{base_model.upper()}_API_KEY")
 
     def _initialize_client(self):
         self.client = ChatOpenAI(
-            model=self.lm_name, base_url=self.base_url, api_key=self.api_key
+            model=self.lm_name,
+            base_url=self.base_url,
+            api_key=self.api_key,
         )
 
     def _create_messages(
@@ -40,11 +51,12 @@ class LangChainAPIInference(BaseLMAPIInference):
         **kwargs,
     ) -> ChatPromptTemplate:
         prompt = ChatPromptTemplate.from_messages(
-            [("system", "{system_msg}"), ("human", "{user_msg}")]
+            [
+                ("system", infer_input.system_msg),
+                ("human", infer_input.user_msg),
+            ]
         )
-        return prompt.format_messages(
-            system_msg=infer_input.system_msg, user_msg=infer_input.user_msg
-        )
+        return prompt.format_messages(**kwargs)
 
     def _inference(
         self,
