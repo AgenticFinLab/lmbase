@@ -8,19 +8,20 @@ from dotenv import load_dotenv
 
 if __name__ == "__main__":
     load_dotenv()
-    api_call = LangChainAPIInference(lm_name="deepseek-chat")
+    api_call = LangChainAPIInference(
+        lm_provider="aihubmix", lm_name="DeepSeek-V3.2-Exp"
+    )
 
-    ii = InferInput(
+    chatbot = InferInput(
         system_msg="you are a repeater, you should replay what the xiaoming say",
         user_msg="xiaoming said:{xiaoming_words}",
     )
 
-    result = api_call.run(ii, xiaoming_words="ni hao")
+    result = api_call.run(chatbot, xiaoming_words="ni hao")
     print("prompt:", result.prompt)
+    print("======")
     print("response:", result.response)
+    print("======")
     print("raw_response:", result.raw_response)
+    print("======")
     print("cost:", result.cost)
-    print("prompt_tokens:", result.prompt_tokens)
-    print("response_tokens:", result.response_tokens)
-    print("raw_response_tokens:", result.raw_response_tokens)
-    print("extras:", result.extras)
