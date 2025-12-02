@@ -2,7 +2,7 @@
 Independent test for MathVerse dataset loading and formatting.
 
 Special handling:
-- Use `testmini` split and set `config_name="testmini"` in registry config
+- Use `testmini` split in registry config
 - Validates standardized sample and message formatting
 """
 
@@ -15,7 +15,7 @@ def run():
     Load MathVerse with the `testmini` config and inspect formatting.
 
     Steps:
-    - Request dataset from registry using `split="testmini"` and `config_name="testmini"`
+    - Request dataset from registry using `split="testmini"`
     - Fetch first standardized sample to verify adapter fields
     - Convert the sample to LM message format via `formatter.map_sample`
     - Attach `lm_format_function` and fetch a formatted sample through `__getitem__`
@@ -25,7 +25,6 @@ def run():
         {
             "data_name": "mathverse",
             "data_path": "EXPERIMENT/data",
-            "config_name": "testmini",
         },
         "testmini",
     )

@@ -32,8 +32,7 @@ class MathVerseDataset(VisualTextBase):
         """Map the dataset to the desired format."""
 
         if self.hf_dataset is None:
-            config_name = self.config["config_name"]
-            self.hf_dataset = load_dataset(self.hf_dataname, config_name)
+            self.hf_dataset = load_dataset(self.hf_dataname, self.split)
 
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.VisualTextBase"
