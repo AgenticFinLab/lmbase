@@ -56,7 +56,7 @@ hf_datasets = {
     "aokvqa": "HuggingFaceM4/A-OKVQA",
     "vqav2": "lmms-lab/VQAv2",
     "mscoco": "bitmind/MS-COCO",
-    "mathverse": "MathLLMs/MathVerse",
+    "mathverse": "AI4Math/MathVerse",
 }
 
 
