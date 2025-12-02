@@ -68,7 +68,6 @@ if __name__ == "__main__":
     # Run data loading tests for all registered datasets on 'train' split
     all_names = list(dataset_registry.data_factory.keys())
     print("Registered datasets:", all_names)
-
     results = {}
     for name in all_names:
         ok = test_single_dataset(name, split="train")

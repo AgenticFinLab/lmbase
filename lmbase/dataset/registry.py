@@ -21,6 +21,7 @@ from lmbase.dataset import (
     mathvision,
     aokvqa,
     vqav2,
+    mathverse,
     # mscoco,
 )
 
@@ -37,7 +38,7 @@ data_factory = {
     "mathvision": mathvision.MathVisionDataset,
     "aokvqa": aokvqa.AOKVQADataset,
     "vqav2": vqav2.VQAv2Dataset,
-    # "mscoco": mscoco.MSCOCODataset,
+    "mathverse": mathverse.MathVerseDataset,
 }
 
 
@@ -55,6 +56,7 @@ hf_datasets = {
     "aokvqa": "HuggingFaceM4/A-OKVQA",
     "vqav2": "lmms-lab/VQAv2",
     "mscoco": "bitmind/MS-COCO",
+    "mathverse": "MathLLMs/MathVerse",
 }
 
 
