@@ -3,8 +3,8 @@ Interface of the MathVerse dataset.
 """
 
 import os
-import ast
 import re
+import ast
 import logging
 
 from datasets import load_dataset
@@ -34,18 +34,47 @@ class MathVerseDataset(VisualTextBase):
         if self.hf_dataset is None:
             config_name = self.config["config_name"]
             self.hf_dataset = load_dataset(self.hf_dataname, config_name)
+
+        print(self.hf_dataset)
         logging.info(
-            "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.TextSample"
+            "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.VisualTextBase"
         )
-        # Make the sample to be the desired format defined
-        # in the dataset.base class
-        self.hf_dataset = self.hf_dataset.map(
-            self.batch_format,
-            batched=True,
-            batch_size=1000,
-            load_from_cache_file=True,
-            # remove_columns=self.hf_dataset.column_names,
-        )
+
+        # Check if hf_dataset is a DatasetDict (contains multiple splits)
+        # This is a DatasetDict
+        if hasattr(self.hf_dataset, "keys"):
+            # Process only the current split
+            if self.split in self.hf_dataset:
+                split_dataset = self.hf_dataset[self.split]
+                column_names = split_dataset.column_names
+
+                # Apply the mapping function to the specific split and replace the entire hf_dataset
+                self.hf_dataset = split_dataset.map(
+                    self.batch_format,
+                    batched=True,
+                    batch_size=1000,
+                    load_from_cache_file=True,
+                    # Remove all original columns
+                    remove_columns=column_names,
+                )
+            else:
+                raise ValueError(
+                    f"Split '{self.split}' not found in dataset. Available splits: {list(self.hf_dataset.keys())}"
+                )
+        # This is a single Dataset
+        else:
+            # Get the column names for this dataset
+            column_names = self.hf_dataset.column_names
+
+            # Apply the mapping function
+            self.hf_dataset = self.hf_dataset.map(
+                self.batch_format,
+                batched=True,
+                batch_size=1000,
+                load_from_cache_file=True,
+                # Remove all original columns
+                remove_columns=column_names,
+            )
 
         # Save some demo samples to the dataset folder
         self.save_example_samples(num_samples=20)
@@ -59,11 +88,53 @@ class MathVerseDataset(VisualTextBase):
         # extract all <imageN> tokens
         question_images = []
         image_tokens = re.findall(r"<image\d+>", question)
+
+        # If there are no image tokens in the question but there is an image, add image tokens to the question
+        image_data = sample.get("image")
+        if image_data is not None and not image_tokens:
+            # If image_data is a list or tuple, count the number of images
+            if isinstance(image_data, (list, tuple)):
+                num_images = len(image_data)
+            else:
+                # If it's a single image, count as 1
+                num_images = 1
+
+            # Add image tokens to the beginning of the question
+            for i in range(num_images):
+                image_token = f"<image{i+1}>"
+                image_tokens.append(image_token)
+
+            # Update the question with the new image tokens
+            image_tokens_str = " ".join(image_tokens)
+            question = image_tokens_str + " " + question
+
         for token in image_tokens:
-            image_data = sample.get("image")
             if image_data is not None:
+                # Handle single image or multiple images
+                if isinstance(image_data, (list, tuple)):
+                    # If image_data is a list/tuple, get the corresponding image based on token index
+                    token_index = int(token.replace("<image", "").replace(">", "")) - 1
+                    if 0 <= token_index < len(image_data):
+                        current_image = image_data[token_index]
+                    else:
+                        continue
+                else:
+                    # If it's a single image, use it for the first image token
+                    token_index = int(token.replace("<image", "").replace(">", "")) - 1
+                    # Only use single image for <image1>
+                    if token_index == 0:
+                        current_image = image_data
+                    else:
+                        logging.warning(
+                            "More image tokens than available images in sample %s",
+                            sample_id,
+                        )
+                        continue
+
                 filename = f"Image-ID{sample_id}-{token}"
-                save_path = self.save_pil_image(image_data, self.image_path, filename)
+                save_path = self.save_pil_image(
+                    current_image, self.image_path, filename
+                )
                 if save_path is not None:
                     question_images.append((token, save_path))
                 else:
@@ -73,7 +144,7 @@ class MathVerseDataset(VisualTextBase):
                         sample_id,
                     )
             else:
-                logging.warning("No decoded_image for sample %s", sample_id)
+                logging.warning("No image data for sample %s", sample_id)
 
         # process the options
         options = sample.get("choices", [])
