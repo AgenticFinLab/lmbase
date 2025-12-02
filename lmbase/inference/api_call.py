@@ -24,6 +24,7 @@ class LangChainAPIInference(BaseLMAPIInference):
 
     def __init__(
         self,
+        lm_provider=None,
         lm_name=None,
         generation_config=None,
     ):
@@ -33,11 +34,10 @@ class LangChainAPIInference(BaseLMAPIInference):
             "deepseek": "https://api.deepseek.com/v1",
             "openai": "https://api.openai.com/v1",
             "qwen": "https://ark.cn-beijing.volces.com/api/v3",
+            "aihubmix": "https://api.aihubmix.com/v1",
         }
-        model_type = self.lm_name.split("-")[0].lower()
-        base_model = "OPENAI" if "gpt" in model_type else model_type
-        self.base_url = base_urls[model_type.lower()]
-        self.api_key = os.getenv(f"{base_model.upper()}_API_KEY")
+        self.base_url = base_urls[lm_provider.lower()]
+        self.api_key = os.getenv(f"{lm_provider.upper()}_API_KEY")
         self._initialize_client()
 
     def _initialize_client(self):
