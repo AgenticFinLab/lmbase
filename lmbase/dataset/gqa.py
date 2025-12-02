@@ -47,11 +47,11 @@ class GQADataset(VisualTextBase):
             # Download the images to the local disk
             self.hf_images = load_dataset(
                 self.hf_dataname,
-                split=f"{self.split}-all-images",
+                f"{self.split}_all_images",
             )
             self.hf_dataset = load_dataset(
                 self.hf_dataname,
-                split=f"{self.split}-all-instructions",
+                f"{self.split}_all_instructions",
             )
             for row in self.hf_images:
                 img_id = row["id"]
