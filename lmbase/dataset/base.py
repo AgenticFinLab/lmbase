@@ -4,6 +4,13 @@ Base dataset interfaces and utilities.
 Provides unified sample containers and a visual-text dataset base class that
 standardizes mapping, formatting, and lightweight asset management for use in
 LLM/VLM evaluation pipelines.
+
+Note on HuggingFace cache:
+- If the dataset has already been downloaded into the local cache directory,
+  HuggingFace will reuse the cached files and skip re-downloading.
+- When `datasets.map` is called with `load_from_cache_file=True` and the mapping
+  fingerprint matches a prior run, the map step will load cached outputs instead
+  of recomputing transformations.
 """
 
 import os
@@ -13,7 +20,7 @@ import logging
 from typing import List, Tuple
 from dataclasses import dataclass
 
-from datasets import load_dataset
+from datasets import load_dataset, config as hf_config
 from torch.utils.data import Dataset
 from transformers.utils import ModelOutput as FieldFrozenContainer
 
@@ -154,6 +161,7 @@ class VisualTextBase(Dataset):
         """
 
         if self.hf_dataset is None:
+            logging.info("   - HF cache directory: %s", hf_config.HF_DATASETS_CACHE)
             self.hf_dataset = load_dataset(self.hf_dataname, split=self.split)
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.TextSample"
@@ -195,6 +203,11 @@ class VisualTextBase(Dataset):
         Returns:
             dict: Dict-of-lists containing standardized sample fields. Keys match
             the canonical schema (e.g., `main_id`, `question`, `groundtruth`).
+
+        HuggingFace cache tip:
+        - With `load_from_cache_file=True`, `datasets.map` can skip re-processing
+          and load cached outputs when the mapping fingerprint (function content
+          and parameters) is unchanged.
         """
         # Convert dict of lists to list of dicts
         samples = [
@@ -227,8 +240,12 @@ class VisualTextBase(Dataset):
 
             filename = f"{filename}.{extension}"
             save_path = f"{path}/{filename}"
-            image_data.save(save_path, img_format)
 
+            # Skip saving if the target image already exists
+            if os.path.exists(save_path):
+                return save_path
+
+            image_data.save(save_path, img_format)
             return save_path
 
         return save_path
