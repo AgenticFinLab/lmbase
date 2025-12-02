@@ -19,7 +19,7 @@ import traceback
 
 
 def test_single_dataset(
-    data_name: str, split: str = "train", data_path: str = "EXPERIMENT/data"
+    data_name: str, split: str = "train", data_path: str = "EXPERIMENT/data", **kwargs
 ):
     """
     Load one dataset via the registry and validate formatting behaviors.
@@ -38,6 +38,8 @@ def test_single_dataset(
             {
                 "data_name": data_name,
                 "data_path": data_path,
+                # for mathverse, add config_name
+                "config_name": kwargs.get("config_name", split),
             },
             split,
         )
@@ -77,6 +79,12 @@ if __name__ == "__main__":
     for name in all_names:
         ok = test_single_dataset(name, split="test")
         results[(name, "test")] = ok
+
+    # for mathverse, test testmini split and add config_name param
+    all_names = ["mathverse"]
+    for name in all_names:
+        ok = test_single_dataset(name, split="testmini", config_name="testmini")
+        results[(name, "testmini")] = ok
 
     # Summary
     print("\n=== Summary ===")
