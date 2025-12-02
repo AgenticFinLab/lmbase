@@ -35,7 +35,6 @@ class MathVerseDataset(VisualTextBase):
             config_name = self.config["config_name"]
             self.hf_dataset = load_dataset(self.hf_dataname, config_name)
 
-        print(self.hf_dataset)
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.VisualTextBase"
         )
