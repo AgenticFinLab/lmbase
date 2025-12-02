@@ -81,7 +81,10 @@ def check_match(original_answers, decomposed_steps_list):
     return results
 
 
-def get_step_content(batch_steps: List[str], prefixes: List[str] = None):
+def extract_labeled_segments(
+    batch_steps: List[str],
+    prefixes: List[str] = None,
+):
     """
     Extract content segments that follow labeled prefixes.
 
@@ -94,7 +97,7 @@ def get_step_content(batch_steps: List[str], prefixes: List[str] = None):
         List[List[str]]: For each input string, a list of extracted segment contents.
 
     Examples:
-        >>> get_step_content(["Step idx: Prepare\nStep 2: Train"], ["Step"])
+        >>> extract_labeled_segments(["Step idx: Prepare\nStep 2: Train"], ["Step"])
         [['Prepare', 'Train']]
     """
     if prefixes is None:
