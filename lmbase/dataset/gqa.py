@@ -32,7 +32,6 @@ class GQADataset(VisualTextBase):
 
         # Images of the dataset
         self.hf_images = None
-        self.image_path_by_id = {}
 
         super().__init__(
             split=split,
@@ -53,13 +52,7 @@ class GQADataset(VisualTextBase):
                 self.hf_dataname,
                 split=f"{self.split}-all-instructions",
             )
-            for row in self.hf_images:
-                img_id = row["id"]
-                img = row["image"]
-                filename = f"{self.split}-Image-ID{img_id}"
-                save_path = self.save_pil_image(img, self.image_path, filename)
-                if save_path is not None:
-                    self.image_path_by_id[img_id] = save_path
+            # Images are accessed by id directly from `self.hf_images` in `to_format`
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.TextSample"
         )
@@ -76,6 +69,10 @@ class GQADataset(VisualTextBase):
         # Save some demo samples to the dataset folder
         self.save_example_samples(num_samples=20)
 
+    def _image_by_id(self, image_id):
+        rows = self.hf_images.filter(lambda x: x["id"] == image_id)
+        return rows[0]["image"] if len(rows) > 0 else None
+
     def to_format(self, sample: dict):
         """Get the sample from the given idx."""
         sample_id = sample["id"]
@@ -85,26 +82,25 @@ class GQADataset(VisualTextBase):
         question_images = []
         image_tokens = re.findall(r"<image\d+>", question)
         image_id = sample["imageId"]
-        image_path = self.image_path_by_id[image_id]
+        image_data = self._image_by_id(image_id)
 
         if image_tokens:
             for token in image_tokens:
-                if image_path is not None:
-                    question_images.append((token, image_path))
-                elif image_id is not None and len(str(image_id)) > 0:
-                    placeholder_path = os.path.join(self.image_path, f"{image_id}.jpg")
-                    question_images.append((token, placeholder_path))
+                if image_data is not None:
+                    filename = f"Image-ID{image_id}-{token}"
+                    save_path = self.save_pil_image(
+                        image_data, self.image_path, filename
+                    )
+                    if save_path is not None:
+                        question_images.append((token, save_path))
         else:
-            if image_path is not None or (
-                image_id is not None and len(str(image_id)) > 0
-            ):
+            if image_data is not None:
                 question = f"<image1>{question}"
                 token = "<image1>"
-                if image_path is not None:
-                    question_images.append((token, image_path))
-                else:
-                    placeholder_path = os.path.join(self.image_path, f"{image_id}.jpg")
-                    question_images.append((token, placeholder_path))
+                filename = f"Image-ID{image_id}-{token}"
+                save_path = self.save_pil_image(image_data, self.image_path, filename)
+                if save_path is not None:
+                    question_images.append((token, save_path))
 
         question = f"{question} {FINAL_SOLUTION_FLAG}\n"
 
