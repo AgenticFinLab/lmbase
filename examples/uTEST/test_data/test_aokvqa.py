@@ -11,6 +11,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load A-OKVQA `train` split and inspect multi-choice visual QA formatting.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample including options
+    - Convert to LM message format and print
+    - Apply dataset-level formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "aokvqa", "data_path": "EXPERIMENT/data"}, "train")
     print("Dataset:", ds)
     s = ds[0]

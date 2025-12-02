@@ -10,6 +10,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load AIME 1983–2024 `test` split and inspect sample formatting.
+
+    Steps:
+    - Fetch dataset via registry
+    - Inspect standardized sample fields
+    - Convert to LM message format and print
+    - Enable dataset-level formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "aime19832024", "data_path": "EXPERIMENT/data"}, "test")
     print("Dataset:", ds)
     s = ds[0]

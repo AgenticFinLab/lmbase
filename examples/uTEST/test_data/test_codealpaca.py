@@ -13,6 +13,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load CodeAlpaca `train` split and verify text-only formatting flow.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample fields
+    - Convert to LM message format and print
+    - Attach dataset-level formatting hook and fetch formatted sample
+    """
     # Load the CodeAlpaca dataset (train split) using the registry
     ds = dataset_registry.get({"data_name": "codealpaca", "data_path": "EXPERIMENT/data"}, "train")
     print("Dataset:", ds)

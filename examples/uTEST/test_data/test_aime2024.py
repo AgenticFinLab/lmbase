@@ -11,7 +11,18 @@ from lmbase import formatter
 
 
 def run():
-    ds = dataset_registry.get({"data_name": "aime2024", "data_path": "EXPERIMENT/data"}, "test")
+    """
+    Load AIME2024 `test` split and validate math-style formatting.
+
+    Steps:
+    - Acquire dataset via registry
+    - Inspect standardized sample
+    - Convert to LM message format and print
+    - Apply dataset-level formatting hook and re-fetch formatted sample
+    """
+    ds = dataset_registry.get(
+        {"data_name": "aime2024", "data_path": "EXPERIMENT/data"}, "test"
+    )
     print("Dataset:", ds)
     s = ds[0]
     print("Standardized sample:", s)

@@ -11,6 +11,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load VQAv2 `validation` split and inspect visual QA formatting.
+
+    Steps:
+    - Acquire dataset via registry
+    - Inspect standardized sample with image bindings
+    - Convert to LM message format and print
+    - Enable dataset-level formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "vqav2", "data_path": "EXPERIMENT/data"}, "validation")
     print("Dataset:", ds)
     s = ds[0]

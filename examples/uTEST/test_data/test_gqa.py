@@ -12,6 +12,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load GQA `train` split and validate image binding and formatting.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample with `<imageN>` tokens
+    - Convert to LM message format and print
+    - Apply dataset-level formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "gqa", "data_path": "EXPERIMENT/data"}, "train")
     print("Dataset:", ds)
     s = ds[0]

@@ -12,6 +12,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load MMMU `train` split and inspect visual-text formatting.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample (images, options if any)
+    - Convert to LM message format
+    - Attach dataset formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "mmmu", "data_path": "EXPERIMENT/data"}, "train")
     print("Dataset:", ds)
     s = ds[0]

@@ -11,6 +11,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load TheoremQA `train` split and inspect visual math formatting.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample including a single image
+    - Convert to LM message format and print
+    - Apply dataset-level formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "theoremqa", "data_path": "EXPERIMENT/data"}, "train")
     print("Dataset:", ds)
     s = ds[0]

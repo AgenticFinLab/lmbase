@@ -11,7 +11,18 @@ from lmbase import formatter
 
 
 def run():
-    ds = dataset_registry.get({"data_name": "humaneval", "data_path": "EXPERIMENT/data"}, "test")
+    """
+    Load HumanEval `test` split and check code-focused formatting.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample (prompt and tests)
+    - Convert to LM message format and print
+    - Apply dataset-level formatting hook and fetch formatted sample
+    """
+    ds = dataset_registry.get(
+        {"data_name": "humaneval", "data_path": "EXPERIMENT/data"}, "test"
+    )
     print("Dataset:", ds)
     s = ds[0]
     print("Standardized sample:", s)

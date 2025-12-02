@@ -13,6 +13,15 @@ from lmbase import formatter
 
 
 def run():
+    """
+    Load MATH `train` split and verify standardized and message formats.
+
+    Steps:
+    - Fetch dataset via registry
+    - Print standardized sample fields (question, groundtruth)
+    - Convert sample to LM message format
+    - Enable dataset-level formatting hook and fetch formatted sample
+    """
     ds = dataset_registry.get({"data_name": "math", "data_path": "EXPERIMENT/data"}, "train")
     print("Dataset:", ds)
     s = ds[0]

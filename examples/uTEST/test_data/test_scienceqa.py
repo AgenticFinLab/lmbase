@@ -11,7 +11,18 @@ from lmbase import formatter
 
 
 def run():
-    ds = dataset_registry.get({"data_name": "scienceqa", "data_path": "EXPERIMENT/data"}, "validation")
+    """
+    Load ScienceQA `validation` split and check visual-text conversion.
+
+    Steps:
+    - Retrieve dataset via registry
+    - Inspect standardized sample including images
+    - Convert to LM message format and print
+    - Enable dataset-level formatting hook and fetch formatted sample
+    """
+    ds = dataset_registry.get(
+        {"data_name": "scienceqa", "data_path": "EXPERIMENT/data"}, "validation"
+    )
     print("Dataset:", ds)
     s = ds[0]
     print("Standardized sample:", s)
