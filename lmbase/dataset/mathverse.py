@@ -32,8 +32,8 @@ class MathVerseDataset(VisualTextBase):
         """Map the dataset to the desired format."""
 
         if self.hf_dataset is None:
-            data_split = self.config["data_split"]
-            self.hf_dataset = load_dataset(self.hf_dataname, data_split)
+            config_name = self.config["config_name"]
+            self.hf_dataset = load_dataset(self.hf_dataname, config_name)
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.TextSample"
         )
@@ -44,7 +44,7 @@ class MathVerseDataset(VisualTextBase):
             batched=True,
             batch_size=1000,
             load_from_cache_file=True,
-            remove_columns=self.hf_dataset.column_names,
+            # remove_columns=self.hf_dataset.column_names,
         )
 
         # Save some demo samples to the dataset folder
