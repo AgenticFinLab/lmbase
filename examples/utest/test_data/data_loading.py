@@ -19,7 +19,10 @@ import traceback
 
 
 def test_single_dataset(
-    data_name: str, split: str = "train", data_path: str = "EXPERIMENT/data", **kwargs
+    data_name: str,
+    split: str = "train",
+    data_path: str = "EXPERIMENT/data",
+    **kwargs,
 ):
     """
     Load one dataset via the registry and validate formatting behaviors.
