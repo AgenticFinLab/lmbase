@@ -33,6 +33,9 @@ class GQADataset(VisualTextBase):
         # Images of the dataset
         self.hf_images = None
 
+        # Cache for image lookup to avoid repeated filtering
+        self._image_cache = None
+
         super().__init__(
             split=split,
             hf_dataname=hf_dataname,
@@ -52,6 +55,8 @@ class GQADataset(VisualTextBase):
                 self.hf_dataname,
                 f"{self.split}_all_instructions",
             )
+            # Build image cache before processing samples to avoid repeated filtering
+            self._build_image_cache()
             # Images are accessed by id directly from `self.hf_images` in `to_format`
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.TextSample"
@@ -95,22 +100,34 @@ class GQADataset(VisualTextBase):
         # Save some demo samples to the dataset folder
         self.save_example_samples(num_samples=20)
 
-    def _image_by_id(self, image_id):
-        # Convert DatasetDict to single Dataset
-        # Get the first available split
+    def _build_image_cache(self):
+        """Build image cache to avoid repeated filtering operations."""
+        if self._image_cache is not None:
+            return  # Cache already built
+
         if isinstance(self.hf_images, dict) or hasattr(self.hf_images, "keys"):
             # If it's DatasetDict, get the dataset from the specified split
             available_splits = list(self.hf_images.keys())
             if available_splits:
                 dataset = self.hf_images[self.split]
             else:
-                return None
+                self._image_cache = {}
+                return
         else:
             # If it's already a single Dataset
             dataset = self.hf_images
 
-        rows = dataset.filter(lambda x: x["id"] == image_id)
-        return rows[0]["image"] if len(rows) > 0 else None
+        # Build mapping from image ID to image data
+        self._image_cache = {}
+        for item in dataset:
+            self._image_cache[item["id"]] = item["image"]
+
+    def _image_by_id(self, image_id):
+        """Get image by ID using cached mapping instead of repeated filtering."""
+        if self._image_cache is None:
+            self._build_image_cache()
+
+        return self._image_cache.get(image_id)
 
     def to_format(self, sample: dict):
         """Get the sample from the given idx."""
