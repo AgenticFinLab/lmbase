@@ -56,21 +56,60 @@ class GQADataset(VisualTextBase):
         logging.info(
             "   - Mapping samples to lmbase format, i.e., lmbase.dataset.base.TextSample"
         )
-        # Make the sample to be the desired format defined
-        # in the dataset.base class
-        self.hf_dataset = self.hf_dataset.map(
-            self.batch_format,
-            batched=True,
-            batch_size=1000,
-            load_from_cache_file=True,
-            remove_columns=self.hf_dataset.column_names,
-        )
+        # Make the sample to be the desired format defined in the dataset.base class
+        # Check if hf_dataset is a DatasetDict (contains multiple splits)
+        # This is a DatasetDict
+        if hasattr(self.hf_dataset, "keys"):
+            # Process only the current split
+            if self.split in self.hf_dataset:
+                split_dataset = self.hf_dataset[self.split]
+                column_names = split_dataset.column_names
 
+                # Apply the mapping function to the specific split and replace the entire hf_dataset
+                self.hf_dataset = split_dataset.map(
+                    self.batch_format,
+                    batched=True,
+                    batch_size=1000,
+                    load_from_cache_file=True,
+                    # Remove all original columns
+                    remove_columns=column_names,
+                )
+            else:
+                raise ValueError(
+                    f"Split '{self.split}' not found in dataset. Available splits: {list(self.hf_dataset.keys())}"
+                )
+        # This is a single Dataset
+        else:
+            # Get the column names for this dataset
+            column_names = self.hf_dataset.column_names
+
+            # Apply the mapping function
+            self.hf_dataset = self.hf_dataset.map(
+                self.batch_format,
+                batched=True,
+                batch_size=1000,
+                load_from_cache_file=True,
+                # Remove all original columns
+                remove_columns=column_names,
+            )
         # Save some demo samples to the dataset folder
         self.save_example_samples(num_samples=20)
 
     def _image_by_id(self, image_id):
-        rows = self.hf_images.filter(lambda x: x["id"] == image_id)
+        # Convert DatasetDict to single Dataset
+        # Get the first available split
+        if isinstance(self.hf_images, dict) or hasattr(self.hf_images, "keys"):
+            # If it's DatasetDict, get the dataset from the specified split
+            available_splits = list(self.hf_images.keys())
+            if available_splits:
+                dataset = self.hf_images[self.split]
+            else:
+                return None
+        else:
+            # If it's already a single Dataset
+            dataset = self.hf_images
+
+        rows = dataset.filter(lambda x: x["id"] == image_id)
         return rows[0]["image"] if len(rows) > 0 else None
 
     def to_format(self, sample: dict):
