@@ -9,6 +9,7 @@ import fcntl
 import time
 import random
 from typing import List, Any, Union
+import torch
 
 
 def format_term(terminology: str):
@@ -304,6 +305,7 @@ class BlockBasedStoreManager:
             data (Any): JSON-serializable content.
         """
         base, _ = self._extract_base_and_id(savename)
+        value = self._prepare_value_for_storage(savename, data)
         # Prefer the newest non-full block for this base; otherwise create a new one
         target = self.find_nonfull_block(base)
         if not target:
@@ -311,13 +313,13 @@ class BlockBasedStoreManager:
             path = os.path.join(self.folder, target)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(
-                    {savename: data}, f, default=str, ensure_ascii=False, indent=2
+                    {savename: value}, f, default=str, ensure_ascii=False, indent=2
                 )
         else:
             path = os.path.join(self.folder, target)
             # Execute the update under retry protection to mitigate transient IO errors
             self._safe_file_operation(
-                path, self._update_block_file, savename, data, max_retries=10
+                path, self._update_block_file, savename, value, max_retries=10
             )
 
     def load(self, savename: str) -> Union[Any, None]:
@@ -350,8 +352,53 @@ class BlockBasedStoreManager:
                     # Return the first match encountered (newest block wins)
                     data = json.load(f)
                     if savename in data:
-                        return data[savename]
+                        return self._resolve_loaded_value(data[savename])
             except (json.JSONDecodeError, OSError, IOError):
                 # Skip unreadable files and continue
                 continue
         return None
+
+    def _prepare_value_for_storage(self, savename: str, data: Any) -> Any:
+        """
+        Convert input data into a JSON-serializable value. If the data is a torch.Tensor
+        and torch is available, save it to a separate .pt file and store a reference.
+
+        Args:
+            savename (str): Record key.
+            data (Any): Input data to persist.
+
+        Returns:
+            Any: JSON-serializable value (possibly a reference dict).
+        """
+        if isinstance(data, torch.Tensor):
+            tensor_path = os.path.join(self.folder, f"{savename}.pt")
+            # If the target file already exists, do not re-save
+            if not os.path.exists(tensor_path):
+                torch.save(data, tensor_path)
+            return {"_type": "torch.tensor", "_path": tensor_path}
+        try:
+            json.dumps(data)
+            return data
+        except TypeError:
+            return str(data)
+
+    def _resolve_loaded_value(self, value: Any) -> Any:
+        """
+        Resolve a stored value into its runtime object. If the value is a tensor reference,
+        load it via torch.load when available.
+
+        Args:
+            value (Any): Stored value from JSON.
+
+        Returns:
+            Any: Runtime data (e.g., torch.Tensor) or the original value.
+        """
+        if (
+            isinstance(value, dict)
+            and value.get("_type") == "torch.tensor"
+            and isinstance(value.get("_path"), str)
+        ):
+            tensor_path = value["_path"]
+            if os.path.exists(tensor_path):
+                return torch.load(tensor_path)
+        return value
