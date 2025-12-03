@@ -26,7 +26,7 @@ def run():
             "data_name": "gqa",
             "data_path": "EXPERIMENT/data/gqa",
         },
-        "challenge",
+        "testdev",
     )
     print("Dataset:", ds)
     s = ds[0]
