@@ -21,7 +21,11 @@ def run():
     - Enable dataset-level formatting hook and fetch formatted sample
     """
     ds = dataset_registry.get(
-        {"data_name": "scienceqa", "data_path": "EXPERIMENT/data"}, "validation"
+        {
+            "data_name": "scienceqa",
+            "data_path": "EXPERIMENT/data/scienceqa",
+        },
+        "validation",
     )
     print("Dataset:", ds)
     s = ds[0]

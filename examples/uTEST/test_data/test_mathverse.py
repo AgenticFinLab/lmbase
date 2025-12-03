@@ -24,7 +24,7 @@ def run():
     ds = dataset_registry.get(
         {
             "data_name": "mathverse",
-            "data_path": "EXPERIMENT/data",
+            "data_path": "EXPERIMENT/data/mathverse",
         },
         "testmini",
     )

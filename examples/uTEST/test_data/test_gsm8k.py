@@ -22,7 +22,13 @@ def run():
     - Convert to LM message format using `formatter.map_sample`
     - Apply dataset-level `lm_format_function` and fetch formatted sample
     """
-    ds = dataset_registry.get({"data_name": "gsm8k", "data_path": "EXPERIMENT/data"}, "train")
+    ds = dataset_registry.get(
+        {
+            "data_name": "gsm8k",
+            "data_path": "EXPERIMENT/data/gsm8k",
+        },
+        "train",
+    )
     print("Dataset:", ds)
     s = ds[0]
     print("Standardized sample:", s)

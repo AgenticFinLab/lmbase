@@ -20,7 +20,13 @@ def run():
     - Convert to LM message format and print
     - Enable dataset-level formatting hook and fetch formatted sample
     """
-    ds = dataset_registry.get({"data_name": "vqav2", "data_path": "EXPERIMENT/data"}, "validation")
+    ds = dataset_registry.get(
+        {
+            "data_name": "vqav2",
+            "data_path": "EXPERIMENT/data/vqav2",
+        },
+        "validation",
+    )
     print("Dataset:", ds)
     s = ds[0]
     print("Standardized sample:", s)

@@ -23,7 +23,13 @@ def run():
     - Attach dataset-level formatting hook and fetch formatted sample
     """
     # Load the CodeAlpaca dataset (train split) using the registry
-    ds = dataset_registry.get({"data_name": "codealpaca", "data_path": "EXPERIMENT/data"}, "train")
+    ds = dataset_registry.get(
+        {
+            "data_name": "codealpaca",
+            "data_path": "EXPERIMENT/data/codealpaca",
+        },
+        "train",
+    )
     print("Dataset:", ds)
 
     # Fetch the first standardized sample from the adapter

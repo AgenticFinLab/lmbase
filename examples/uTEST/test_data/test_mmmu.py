@@ -21,7 +21,13 @@ def run():
     - Convert to LM message format
     - Attach dataset formatting hook and fetch formatted sample
     """
-    ds = dataset_registry.get({"data_name": "mmmu", "data_path": "EXPERIMENT/data"}, "train")
+    ds = dataset_registry.get(
+        {
+            "data_name": "mmmu",
+            "data_path": "EXPERIMENT/data/mmmu",
+        },
+        "train",
+    )
     print("Dataset:", ds)
     s = ds[0]
     print("Standardized sample:", s)
