@@ -1,6 +1,4 @@
 pandas
-torch
-torchvision
 transformers
 selenium
 openai
