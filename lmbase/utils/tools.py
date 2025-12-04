@@ -161,22 +161,17 @@ class BlockBasedStoreManager:
         os.makedirs(self.folder, exist_ok=True)
 
     @staticmethod
-    def _extract_base_and_id(savename: str):
+    def _extract_base(savename: str) -> str:
         """
-        Extract base name and trailing numeric id from `savename`.
+        Extract base name from savename by removing the trailing underscore and id.
 
         Args:
-            savename (str): e.g., "results_123" or "logs-42".
+            savename (str): String in the format 'base_id', e.g., 'results_123'.
 
         Returns:
-            Tuple[str, int | None]: (base, id). If no id is present, id is None and base
-            equals the original name.
+            str: The base part of the savename, e.g., 'results'.
         """
-        m = re.match(r"^(.*?)[_-]?(\d+)$", savename)
-        if m:
-            base = m.group(1) or savename
-            return base, int(m.group(2))
-        return savename, None
+        return savename.split("_")[0]
 
     @staticmethod
     def _safe_file_operation(
@@ -304,7 +299,7 @@ class BlockBasedStoreManager:
             savename (str): Record key (e.g., "results_123").
             data (Any): JSON-serializable content.
         """
-        base, _ = self._extract_base_and_id(savename)
+        base = self._extract_base(savename)
         value = self._prepare_value_for_storage(savename, data)
         # Prefer the newest non-full block for this base; otherwise create a new one
         target = self.find_nonfull_block(base)
@@ -332,7 +327,7 @@ class BlockBasedStoreManager:
         Returns:
             Any | None: Record content when found; otherwise None.
         """
-        base, _ = self._extract_base_and_id(savename)
+        base = self._extract_base(savename)
         pattern = self._pattern(base)
         # Collect all blocks for this base; if none, indicate absence
         files = [name for name in os.listdir(self.folder) if pattern.match(name)]
