@@ -5,11 +5,18 @@ Tools used by the whole project.
 import os
 import re
 import json
-import fcntl
 import time
 import random
 from typing import List, Any, Union
 import torch
+# Platform-specific locking imports
+try:
+    # For MacOS/Linux
+    import fcntl
+except ImportError:
+    fcntl = None
+    # For Windows
+    import msvcrt
 
 
 def format_term(terminology: str):
@@ -130,6 +137,41 @@ def extract_labeled_segments(
 # - Given the same `savename`, the system searches `{base}_block_{idx}.json` files from newest to oldest.
 
 
+class FileLock:
+    """
+    Cross-platform file lock container to handle fcntl/msvcrt differences.
+    
+    Provides consistent locking interface across Windows and Unix-like systems.
+    """
+    def __init__(self, file_handle):
+        self.fh = file_handle
+
+    def acquire(self):
+        """Acquire exclusive lock on the file handle"""
+        if fcntl is not None:
+            # Unix-like systems with fcntl
+            fcntl.flock(self.fh.fileno(), fcntl.LOCK_EX)
+        else:
+            # Windows system with msvcrt
+            msvcrt.locking(self.fh.fileno(), msvcrt.LK_LOCK, 1)
+
+    def release(self):
+        """Release lock on the file handle"""
+        if fcntl is not None:
+            # Unix-like systems with fcntl
+            fcntl.flock(self.fh.fileno(), fcntl.LOCK_UN)
+        else:
+            # Windows system with msvcrt
+            msvcrt.locking(self.fh.fileno(), msvcrt.LK_UNLCK, 1)
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()
+
+
 class BlockBasedStoreManager:
     """
     Configurable block-based storage for JSON records.
@@ -210,16 +252,17 @@ class BlockBasedStoreManager:
             data (Any): JSON-serializable content to write.
         """
         with open(path, "r+", encoding="utf-8") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                f.seek(0)
-                existing_data = json.load(f)
-                existing_data[savename] = data
-                f.seek(0)
-                f.truncate()
-                json.dump(existing_data, f, default=str, ensure_ascii=False, indent=2)
-            finally:
-                pass
+            # Use cross-platform lock container
+            with FileLock(f):
+                try:
+                    f.seek(0)
+                    existing_data = json.load(f)
+                    existing_data[savename] = data
+                    f.seek(0)
+                    f.truncate()
+                    json.dump(existing_data, f, default=str, ensure_ascii=False, indent=2)
+                finally:
+                    pass
 
     def _pattern(self, base: str):
         return re.compile(rf"^{re.escape(base)}_block_(\d+)\.{self.file_format}$")
