@@ -24,7 +24,6 @@ class LangChainAPIInference(BaseLMAPIInference):
 
     def __init__(
         self,
-        lm_provider=None,
         lm_name=None,
         generation_config=None,
     ):
@@ -36,13 +35,15 @@ class LangChainAPIInference(BaseLMAPIInference):
             "qwen": "https://ark.cn-beijing.volces.com/api/v3",
             "aihubmix": "https://api.aihubmix.com/v1",
         }
-        self.base_url = base_urls[lm_provider.lower()]
-        self.api_key = os.getenv(f"{lm_provider.upper()}_API_KEY")
+        self.lm_provider = lm_name.split("/")[0]
+        self.model_name = "/".join(lm_name.split("/")[1:])
+        self.base_url = base_urls[self.lm_provider.lower()]
+        self.api_key = os.getenv(f"{self.lm_provider.upper()}_API_KEY")
         self._initialize_client()
 
     def _initialize_client(self):
         self.client = ChatOpenAI(
-            model=self.lm_name,
+            model=self.model_name,
             base_url=self.base_url,
             api_key=self.api_key,
         )
