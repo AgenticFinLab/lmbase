@@ -39,6 +39,10 @@ class LangChainAPIInference(BaseLMAPIInference):
         self.model_name = "/".join(lm_name.split("/")[1:])
         self.base_url = base_urls[self.lm_provider.lower()]
         self.api_key = os.getenv(f"{self.lm_provider.upper()}_API_KEY")
+        if not self.api_key or self.api_key is None:
+            raise ValueError(
+                f"API key for provider '{self.lm_provider.upper()}' not found. Please set the environment variable '{self.lm_provider.upper()}_API_KEY'."
+            )
         self._initialize_client()
 
     def _initialize_client(self):
