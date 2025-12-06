@@ -9,14 +9,19 @@ import time
 import random
 from typing import List, Any, Union
 import torch
+
 # Platform-specific locking imports
 try:
     # For MacOS/Linux
     import fcntl
+
+    WINDOWS = False
 except ImportError:
     fcntl = None
     # For Windows
     import msvcrt
+
+    WINDOWS = True
 
 
 def format_term(terminology: str):
@@ -140,29 +145,63 @@ def extract_labeled_segments(
 class FileLock:
     """
     Cross-platform file lock container to handle fcntl/msvcrt differences.
-    
+
     Provides consistent locking interface across Windows and Unix-like systems.
     """
-    def __init__(self, file_handle):
+
+    def __init__(self, file_handle, mode="r"):
         self.fh = file_handle
+        self.mode = mode
+        self.is_locked = False
 
     def acquire(self):
         """Acquire exclusive lock on the file handle"""
         if fcntl is not None:
             # Unix-like systems with fcntl
             fcntl.flock(self.fh.fileno(), fcntl.LOCK_EX)
+            self.is_locked = True
         else:
-            # Windows system with msvcrt
-            msvcrt.locking(self.fh.fileno(), msvcrt.LK_LOCK, 1)
+            # Windows system with msvcrt - requires binary mode
+            try:
+                # For Windows, we need to ensure the file is in binary mode
+                if "r" in self.mode and "+" in self.mode:
+                    # For r+ mode, lock the whole file
+                    msvcrt.locking(self.fh.fileno(), msvcrt.LK_LOCK, 1)
+                    self.is_locked = True
+                elif "w" in self.mode or "a" in self.mode:
+                    # For write/append modes, lock from current position to end
+                    current_pos = self.fh.tell()
+                    self.fh.seek(0, 2)  # Seek to end
+                    file_size = self.fh.tell()
+                    self.fh.seek(current_pos)  # Restore position
+                    if file_size > 0:
+                        msvcrt.locking(
+                            self.fh.fileno(), msvcrt.LK_LOCK, file_size - current_pos
+                        )
+                    self.is_locked = True
+            except Exception as e:
+                print(f"Warning: Failed to acquire lock on Windows: {e}")
+                # On Windows, sometimes locking fails; we'll continue without lock
+                self.is_locked = False
 
     def release(self):
         """Release lock on the file handle"""
-        if fcntl is not None:
-            # Unix-like systems with fcntl
-            fcntl.flock(self.fh.fileno(), fcntl.LOCK_UN)
-        else:
-            # Windows system with msvcrt
-            msvcrt.locking(self.fh.fileno(), msvcrt.LK_UNLCK, 1)
+        if self.is_locked:
+            try:
+                if fcntl is not None:
+                    # Unix-like systems with fcntl
+                    fcntl.flock(self.fh.fileno(), fcntl.LOCK_UN)
+                else:
+                    # Windows system with msvcrt
+                    try:
+                        msvcrt.locking(self.fh.fileno(), msvcrt.LK_UNLCK, 1)
+                    except:
+                        # Sometimes unlocking fails on Windows, ignore
+                        pass
+            except Exception as e:
+                print(f"Warning: Failed to release lock: {e}")
+            finally:
+                self.is_locked = False
 
     def __enter__(self):
         self.acquire()
@@ -251,18 +290,40 @@ class BlockBasedStoreManager:
             savename (str): Record key.
             data (Any): JSON-serializable content to write.
         """
-        with open(path, "r+", encoding="utf-8") as f:
-            # Use cross-platform lock container
-            with FileLock(f):
+        # For Windows, we need to handle file locking differently
+        if WINDOWS:
+            # On Windows, use a simpler approach with file reading/writing
+            # First read the existing data
+            existing_data = {}
+            if os.path.exists(path):
                 try:
-                    f.seek(0)
-                    existing_data = json.load(f)
-                    existing_data[savename] = data
-                    f.seek(0)
-                    f.truncate()
-                    json.dump(existing_data, f, default=str, ensure_ascii=False, indent=2)
-                finally:
-                    pass
+                    with open(path, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    existing_data = {}
+
+            # Update the data
+            existing_data[savename] = data
+
+            # Write back to file
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(existing_data, f, default=str, ensure_ascii=False, indent=2)
+        else:
+            # On Unix-like systems, use the original locking approach
+            with open(path, "r+", encoding="utf-8") as f:
+                # Use cross-platform lock container
+                with FileLock(f, mode="r+"):
+                    try:
+                        f.seek(0)
+                        existing_data = json.load(f)
+                        existing_data[savename] = data
+                        f.seek(0)
+                        f.truncate()
+                        json.dump(
+                            existing_data, f, default=str, ensure_ascii=False, indent=2
+                        )
+                    finally:
+                        pass
 
     def _pattern(self, base: str):
         return re.compile(rf"^{re.escape(base)}_block_(\d+)\.{self.file_format}$")
