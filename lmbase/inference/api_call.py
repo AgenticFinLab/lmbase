@@ -33,19 +33,21 @@ class LangChainAPIInference(BaseLMAPIInference):
             "deepseek": "https://api.deepseek.com/v1",
             "openai": "https://api.openai.com/v1",
             "qwen": "https://ark.cn-beijing.volces.com/api/v3",
-            "aihubmix": "https://api.aihubmix.com/v1",
+            "aihubmix": "https://aihubmix.com/v1",
         }
         self.lm_provider = lm_name.split("/")[0]
         self.model_name = "/".join(lm_name.split("/")[1:])
         self.base_url = base_urls[self.lm_provider.lower()]
         self.api_key = os.getenv(f"{self.lm_provider.upper()}_API_KEY")
+        if not self.api_key or self.api_key is None:
+            raise ValueError(
+                f"API key for provider '{self.lm_provider.upper()}' not found. Please set the environment variable '{self.lm_provider.upper()}_API_KEY'."
+            )
         self._initialize_client()
 
     def _initialize_client(self):
         self.client = ChatOpenAI(
-            model=self.model_name,
-            base_url=self.base_url,
-            api_key=self.api_key,
+            model=self.model_name, base_url=self.base_url, api_key=self.api_key
         )
 
     def _create_messages(
