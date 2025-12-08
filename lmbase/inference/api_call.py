@@ -29,7 +29,7 @@ class LangChainAPIInference(BaseLMAPIInference):
     ):
         super().__init__(lm_name=lm_name, generation_config=generation_config)
         base_urls = {
-            "doubao": "https://ark.cn-beijing.volces.com/api/v3",
+            "ark": "https://ark.cn-beijing.volces.com/api/v3",
             "deepseek": "https://api.deepseek.com/v1",
             "openai": "https://api.openai.com/v1",
             "qwen": "https://ark.cn-beijing.volces.com/api/v3",
