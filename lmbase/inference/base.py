@@ -84,7 +84,6 @@ class BaseLMAPIInference(ABC):
         self,
         lm_name: str,
         generation_config: dict = None,
-        **kwargs,
     ):
         self.lm_name = lm_name
         self.generation_config = generation_config
@@ -177,7 +176,6 @@ class BaseLMInference(ABC):
         self,
         lm_path: str,
         generation_config: dict = None,
-        **kwargs,
     ):
         """
         Initialize the base inference runtime.

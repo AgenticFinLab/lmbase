@@ -36,7 +36,11 @@ class Qwen25VLInference(BaseLMInference):
     def _load_processor(self):
         self.processor = AutoProcessor.from_pretrained(self.lm_path)
 
-    def _model_call(self, infer_input: InferInput, **kwargs) -> ModelInferOutput:
+    def _model_call(
+        self,
+        infer_input: InferInput,
+        **kwargs,
+    ) -> ModelInferOutput:
         """
         Execute the full pipeline from messages → preprocessing/tokenization →
         model generation → decode/assemble outputs.
@@ -91,20 +95,11 @@ class Qwen25VLInference(BaseLMInference):
         #   - T: number of frames (images: T=1; videos: T>=1)
         #   - H', W': encoded height/width after the visual backbone
 
-        gen_kwargs = {}
-        for k, v in (
-            self.generation_config.items()
-            if self.generation_config is not None
-            else {}.items()
-        ):
-            gen_kwargs[k] = v
-        for k, v in kwargs.items():
-            gen_kwargs[k] = v
-
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                **gen_kwargs,
+                # use direct **kwargs for generation parameters (e.g., max_new_tokens, temperature)
+                **kwargs,
                 # return a dict; includes 'sequences' and related generation fields
                 return_dict_in_generate=True,
                 # also return attentions; structure depends on model configuration
