@@ -16,3 +16,4 @@ langchain_openai
 langchain
 dotenv
 typing
+qwen_vl_utils
