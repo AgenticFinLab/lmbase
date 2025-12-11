@@ -8,7 +8,13 @@ and outputs for easier understanding and debugging.
 
 import torch
 from qwen_vl_utils import process_vision_info
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+from transformers import (
+    AutoProcessor,
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    AutoModel,
+)
+from vllm import LLM, SamplingParams
 
 from .base import InferInput, ModelInferOutput, InferCost, BaseLMInference
 
@@ -24,17 +30,55 @@ class Qwen25VLInference(BaseLMInference):
     """
 
     def _load_model(self):
-        # Load Qwen2.5-VL model from the specified path
-        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        # Load a vision-language model using generic AutoModel with remote code.
+        # Rationale: many community VLMs expose multimodal generate via `trust_remote_code=True`.
+        # If you are explicitly using Qwen2.5-VL, the native class is:
+        #   from transformers import Qwen2_5_VLForConditionalGeneration
+        #   self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        #       self.lm_path, torch_dtype=..., device_map="auto", attn_implementation="eager"
+        #   )
+        self.model = AutoModel.from_pretrained(
             self.lm_path,
             torch_dtype=self.dtype if self.dtype is not None else "auto",
             device_map="auto",
-            attn_implementation="eager",
+            trust_remote_code=True,
         )
-        self.tokenizer = None
+        self.processor = AutoProcessor.from_pretrained(
+            self.lm_path, trust_remote_code=True
+        )
 
-    def _load_processor(self):
-        self.processor = AutoProcessor.from_pretrained(self.lm_path)
+    def _tokenize(self, infer_input: InferInput, **kwargs):
+        """
+        Convert `InferInput` into processor-ready tensors for Qwen2.5-VL.
+
+        - Build Qwen-style chat `messages` containing both image and text content
+        - Use `AutoProcessor.apply_chat_template` to produce the text prompt string
+        - Use `process_vision_info` to convert image inputs into RGB tensors
+        - Encode with `processor(...)` and move tensors to `self.device`
+        """
+        if infer_input.messages is not None:
+            messages = infer_input.messages
+        else:
+            # Assume that the user has set the user message correctly as discussed by the comment of the `InferInput`
+            messages = [{"role": "user", "content": infer_input.user_msg}]
+
+        # Convert messages into a prompt string following Qwen chat template
+        text = self.processor.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        # Extract and preprocess vision inputs (images/videos) into model-ready tensors
+        image_inputs, _ = process_vision_info(messages)
+        # Encode text and images via the processor; return batched tensors
+        inputs = self.processor(
+            text=[text],
+            images=image_inputs,
+            padding=True,
+            return_tensors="pt",
+        ).to(self.device)
+
+        return {"messages": messages, "inputs": inputs}
 
     def _model_call(
         self,
@@ -45,40 +89,9 @@ class Qwen25VLInference(BaseLMInference):
         Execute the full pipeline from messages → preprocessing/tokenization →
         model generation → decode/assemble outputs.
         """
-        if infer_input.messages is not None:
-            messages = infer_input.messages
-        else:
-            image_path = (
-                infer_input.extras["image_path"]
-                if "image_path" in infer_input.extras
-                else None
-            )
-            user_text = infer_input.user_msg
-            content = []
-            if image_path is not None:
-                content.append({"type": "image", "image": image_path})
-            if user_text is not None:
-                content.append({"type": "text", "text": user_text})
-            messages = [{"role": "user", "content": content}]
-
-        # Process image and text inputs to meet the template requirements of the model
-        # Use processor chat template (Qwen-specific)
-        text = self.processor.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-
-        # Process the input image (e.g., an image URL) to obtain the image data in RGB mode
-        image_inputs, _ = process_vision_info(messages)
-
-        # Build processor kwargs dynamically to include images only when present
-        inputs = self.processor(
-            text=[text],
-            images=image_inputs,
-            padding=True,
-            return_tensors="pt",
-        ).to(self.device)
+        tok = self._tokenize(infer_input, **kwargs)
+        messages = tok["messages"]
+        inputs = tok["inputs"]
 
         # Organize inputs for model inference.
         # 'inputs' is a dict with keys typically including:
@@ -98,8 +111,8 @@ class Qwen25VLInference(BaseLMInference):
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                # use direct **kwargs for generation parameters (e.g., max_new_tokens, temperature)
-                **kwargs,
+                # use generation_config for generation parameters (e.g., max_new_tokens, temperature)
+                **self.generation_config,
                 # return a dict; includes 'sequences' and related generation fields
                 return_dict_in_generate=True,
                 # also return attentions; structure depends on model configuration
@@ -147,8 +160,8 @@ class Qwen25VLInference(BaseLMInference):
             cost=cost,
             # 'input_ids': text input token IDs, shape [B, L_in]
             input_ids=inputs.input_ids,
-            # 'generated_ids': newly generated token IDs, shape [B, L_gen]
-            generated_ids=generated_ids_trimmed,
+            # 'completion_ids': newly generated token IDs, shape [B, L_gen]
+            completion_ids=generated_ids_trimmed,
             # 'logits': optional logits output (None when not enabled)
             logits=None,
             # 'hidden_states': optional hidden states (None when not enabled)
@@ -164,4 +177,175 @@ class Qwen25VLInference(BaseLMInference):
                 # 'image_grid_thw': spatial dims after visual encoding, shape [B, 3] with [T, H', W']
                 "image_grid_thw": image_grid_thw,
             },
+        )
+
+
+class LLMInference(BaseLMInference):
+    """
+    Text-only inference for LLM models with optional vLLM backend.
+
+    Overview:
+    - Loads a causal language model and tokenizer from `lm_path`
+    - When `use_vllm` is enabled, initializes a vLLM engine for high-throughput generation
+    - Implements `_model_call` to perform end-to-end text generation and return `ModelInferOutput`
+
+    Design Notes:
+    - Uses the tokenizer's chat template (`apply_chat_template`) to build prompts from messages
+    - Accepts direct `**kwargs` for generation parameters (e.g., `max_new_tokens`, `temperature`)
+    - Returns `completion_ids` (generated token IDs) alongside text `response`
+    - Keeps vector fields (`logits`, `hidden_states`, `attentions`, `embeddings`) disabled by default
+    """
+
+    def __init__(
+        self,
+        lm_path: str,
+        inference_config: dict = None,
+        generation_config: dict = None,
+        **kwargs,
+    ):
+        super().__init__(
+            lm_path=lm_path,
+            inference_config=inference_config or {},
+            generation_config=generation_config or {},
+        )
+        self.use_vllm = bool(self.inference_config.get("use_vllm", False))
+
+    def _load_model(self):
+        """
+        Load tokenizer and model resources.
+
+        - In vLLM mode, initialize `LLM` and keep a HF tokenizer for decoding.
+        - Otherwise, use Transformers `AutoModelForCausalLM` and `AutoTokenizer`.
+        """
+        if self.use_vllm:
+            self.model = LLM(model=self.lm_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.lm_path)
+            return
+
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.lm_path,
+            torch_dtype=self.dtype if self.dtype is not None else "auto",
+            device_map="auto",
+        )
+        self.tokenizer = AutoTokenizer.from_pretrained(self.lm_path)
+
+    def _tokenize(self, infer_input: InferInput, **kwargs):
+        """
+        Convert `InferInput` into text model inputs.
+
+        - Assume user has prepared `user_msg` with the required format and content
+        - Build minimal messages and apply the tokenizer's chat template
+        - Encode the prompt into tensors (`input_ids`, `attention_mask`) placed on `self.device`
+        """
+        if infer_input.messages is not None:
+            messages = infer_input.messages
+        else:
+            messages = [{"role": "user", "content": infer_input.user_msg}]
+
+        prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        enc = self.tokenizer([prompt], return_tensors="pt").to(self.device)
+        return {"messages": messages, "inputs": enc, "prompt": prompt}
+
+    def _model_call(
+        self,
+        infer_input: InferInput,
+        **kwargs,
+    ) -> ModelInferOutput:
+        """
+        Execute text generation using either vLLM or Transformers backend.
+
+        - Select backend based on `use_vllm`
+        - Pass generation parameters directly via `**kwargs`
+        - Decode generated token IDs into text and assemble `ModelInferOutput`
+        """
+        tok = self._tokenize(infer_input, **kwargs)
+        messages = tok["messages"]
+        inputs = tok["inputs"]
+
+        if self.use_vllm and self.model is not None:
+            # Build sampling parameters directly from **kwargs so callers can control
+            # decoding behavior (e.g., max_new_tokens, temperature, top_p, top_k).
+            prompt_str = tok["prompt"]
+            sampling = SamplingParams(**self.generation_config)
+            # Generate using vLLM engine; returns structured outputs per prompt
+            results = self.model.generate(prompt_str, sampling_params=sampling)
+
+            # Extract the first candidate from the first prompt for simplicity
+            first = results[0].outputs[0]
+            decoded = first.text
+
+            # Convert vLLM token IDs to a 2D tensor [1, L_gen] to match ModelInferOutput
+            token_ids = getattr(first, "token_ids", None)
+            completion_ids = (
+                torch.tensor(token_ids, device=self.device).unsqueeze(0)
+                if token_ids is not None
+                else None
+            )
+
+            # Optional token text reconstruction for debugging/analysis
+            tokens_text = (
+                self.tokenizer.convert_ids_to_tokens(
+                    token_ids, skip_special_tokens=False
+                )
+                if token_ids is not None
+                else None
+            )
+            cost = InferCost(time_used=0.0, prompt_tokens=0, completion_tokens=0)
+            return ModelInferOutput(
+                prompt=messages,
+                response=decoded.strip(),
+                raw_response=decoded,
+                cost=cost,
+                input_ids=inputs.input_ids,
+                completion_ids=completion_ids,
+                logits=None,
+                hidden_states=None,
+                attentions=None,
+                embeddings=None,
+                extras={"tokens_text": tokens_text},
+            )
+
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                **self.generation_config,
+                return_dict_in_generate=True,
+                output_attentions=True,
+            )
+        # Collect sequences ([B, L_in + L_gen]) and slice out generated IDs
+        sequences = outputs.sequences
+        input_len = inputs.input_ids.shape[1]
+        completion_ids = sequences[:, input_len:]
+
+        # Decode generated token IDs to text; keep special tokens skipped
+        decoded = self.tokenizer.batch_decode(
+            completion_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0]
+
+        # Build token text for full sequence (input + completion) when needed
+        seq_ids = sequences[0].tolist()
+        tokens_text = self.tokenizer.convert_ids_to_tokens(
+            seq_ids, skip_special_tokens=False
+        )
+
+        # Capture attentions returned by generate; structure depends on model config
+        attentions = outputs.attentions
+
+        cost = InferCost(time_used=0.0, prompt_tokens=0, completion_tokens=0)
+        return ModelInferOutput(
+            prompt=messages,
+            response=decoded.strip(),
+            raw_response=decoded,
+            cost=cost,
+            input_ids=inputs.input_ids,
+            completion_ids=completion_ids,
+            logits=None,
+            hidden_states=None,
+            attentions=list(attentions) if attentions is not None else None,
+            embeddings=None,
+            extras={"tokens_text": tokens_text},
         )

@@ -7,7 +7,7 @@ Base Classes and Core Definitions for LLM Inference:
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from abc import ABC, abstractmethod
 
 import torch
@@ -37,11 +37,22 @@ class InferInput:
     Attributes:
         system_msg: The input message used for the system prompt.
         user_msg: The input message used for the user prompt.
+            Supported forms vary by model type:
+            - Text-only models: pass a plain `str` containing the user question or instruction.
+            - Vision-language (VL) models: pass either a `str` or a `List` of content blocks.
+              When passing a list, use Qwen-style content items, for example:
+                [{"type": "image", "image": "/path/to/image.jpg"},
+                 {"type": "text",  "text":  "Describe the image"}]
+              The list may contain multiple images and text segments in order.
+
+            Notes:
+            - If `messages` is provided, `user_msg` is ignored; `messages` takes precedence.
+            - For VL models, always prefer explicit list-form content for multi-modal prompts.
         extras: Additional information to be used.
     """
 
     system_msg: str
-    user_msg: str
+    user_msg: Union[str, List[Any]]
 
     extras: Dict[str, Any] = field(default_factory=dict)
     messages: Optional[List[Dict[str, Any]]] = None
@@ -134,7 +145,7 @@ class ModelInferOutput(InferOutput):
 
     Attributes (added):
         input_ids: Tokenized input IDs used by the model.
-        generated_ids: Generated token IDs from the model.
+        completion_ids: Generated token IDs from the model.
         logits: Model output logits for generated tokens.
         hidden_states: Intermediate hidden states across layers.
         attentions: Attention weights across layers/heads.
@@ -142,7 +153,7 @@ class ModelInferOutput(InferOutput):
     """
 
     input_ids: Optional[torch.Tensor] = None
-    generated_ids: Optional[torch.Tensor] = None
+    completion_ids: Optional[torch.Tensor] = None
     logits: Optional[torch.Tensor] = None
     hidden_states: Optional[List[torch.Tensor]] = None
     attentions: Optional[List[torch.Tensor]] = None
@@ -161,12 +172,13 @@ class BaseLMInference(ABC):
 
     Attributes:
         lm_path: Path or identifier of the local model
-        generation_config: Configuration dict used by generation routines. May include
-            `device` and `dtype` keys which will be used if provided.
-        device: Target device string (e.g., "cuda", "cpu"); can be set via
-            `generation_config['device']` and auto-detected if not provided
-        dtype: Optional torch dtype used for model weights/inputs; can be set via
-            `generation_config['dtype']` or constructor argument. No transformation is performed.
+        inference_config: Non-generation configuration for inference runtime (e.g., `device`, `dtype`,
+            backend toggles like `use_vllm`, etc.).
+        generation_config: Configuration dict passed directly to model `generate` routines (e.g.,
+            `max_new_tokens`, `temperature`, `top_p`).
+        device: Target device string (e.g., "cuda", "cpu"); controlled by `inference_config['device']`
+            and auto-detected if not provided.
+        dtype: Optional torch dtype used for model weights/inputs; controlled by `inference_config['dtype']`.
         model: The loaded model instance (set by `_load_model`)
         tokenizer: The loaded tokenizer instance (set by `_load_model`)
         processor: Optional multimodal processor used for images/audio/video
@@ -175,6 +187,7 @@ class BaseLMInference(ABC):
     def __init__(
         self,
         lm_path: str,
+        inference_config: dict = None,
         generation_config: dict = None,
     ):
         """
@@ -189,24 +202,27 @@ class BaseLMInference(ABC):
             None
         """
         self.lm_path = lm_path
+        # Separate configs:
+        # - inference_config: non-generation runtime settings (device, dtype, backend toggles, etc.)
+        # - generation_config: parameters passed to the model's `generate` API
+        self.inference_config = inference_config or {}
         self.generation_config = generation_config or {}
 
         self.device = (
-            self.generation_config["device"]
-            if self.generation_config["device"] is not None
+            self.inference_config["device"]
+            if self.inference_config.get("device") is not None
             else ("cuda" if torch.cuda.is_available() else "cpu")
         )
 
         self.dtype = (
-            self.generation_config["dtype"]
-            if "dtype" in self.generation_config
+            self.inference_config["dtype"]
+            if "dtype" in self.inference_config
             else None
         )
         self.model = None
         self.tokenizer = None
         self.processor = None
         self._load_model()
-        self._load_processor()
 
     @abstractmethod
     def _load_model(self):
@@ -221,19 +237,6 @@ class BaseLMInference(ABC):
             None
         """
         pass
-
-    def _load_processor(self):
-        """
-        Optionally load a multimodal processor (e.g., image processors for
-        vision-language models).
-
-        Implementations may set:
-            - self.processor
-
-        Returns:
-            None
-        """
-        return None
 
     @abstractmethod
     def _tokenize(self, infer_input: InferInput, **kwargs) -> Dict[str, Any]:
