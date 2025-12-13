@@ -23,7 +23,7 @@ from lmbase.dataset import (
     vqav2,
     mathverse,
     gqa,
-    # mscoco,
+    dapomath,
 )
 
 data_factory = {
@@ -41,6 +41,7 @@ data_factory = {
     "vqav2": vqav2.VQAv2Dataset,
     "mathverse": mathverse.MathVerseDataset,
     "gqa": gqa.GQADataset,
+    "dapomath": dapomath.DAPOMathDataset,
 }
 
 
@@ -60,6 +61,7 @@ hf_datasets = {
     "mscoco": "bitmind/MS-COCO",
     "mathverse": "AI4Math/MathVerse",
     "gqa": "lmms-lab/GQA",
+    "dapomath": "BytedTsinghua-SIA/DAPO-Math-17k",
 }
 
 
