@@ -18,3 +18,4 @@ dotenv
 typing
 qwen_vl_utils
 vllm
+math_verify
