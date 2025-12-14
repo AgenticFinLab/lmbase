@@ -24,6 +24,7 @@ from lmbase.dataset import (
     mathverse,
     gqa,
     dapomath,
+    math500,
 )
 
 data_factory = {
@@ -42,6 +43,7 @@ data_factory = {
     "mathverse": mathverse.MathVerseDataset,
     "gqa": gqa.GQADataset,
     "dapomath": dapomath.DAPOMathDataset,
+    "math500": math500.Math500Dataset,
 }
 
 
@@ -62,6 +64,7 @@ hf_datasets = {
     "mathverse": "AI4Math/MathVerse",
     "gqa": "lmms-lab/GQA",
     "dapomath": "BytedTsinghua-SIA/DAPO-Math-17k",
+    "math500": "HuggingFaceH4/MATH-500",
 }
 
 
