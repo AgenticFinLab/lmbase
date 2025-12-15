@@ -6,6 +6,8 @@ base interfaces, keeping detailed comments to clarify data flow, tensor shapes,
 and outputs for easier understanding and debugging.
 """
 
+from typing import List
+
 import torch
 from qwen_vl_utils import process_vision_info
 from transformers import (
@@ -82,14 +84,14 @@ class Qwen25VLInference(BaseLMInference):
 
     def _model_call(
         self,
-        infer_input: InferInput,
+        infer_inputs: List[InferInput],
         **kwargs,
     ) -> ModelInferOutput:
         """
         Execute the full pipeline from messages → preprocessing/tokenization →
         model generation → decode/assemble outputs.
         """
-        tok = self._tokenize(infer_input, **kwargs)
+        tok = self._tokenize(infer_inputs, **kwargs)
         messages = tok["messages"]
         inputs = tok["inputs"]
 

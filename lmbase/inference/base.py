@@ -5,8 +5,11 @@ Base Classes and Core Definitions for LLM Inference:
 2. Model-based
 """
 
+import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
+import dataclasses
+
 from typing import Optional, List, Dict, Any, Union
 from abc import ABC, abstractmethod
 
@@ -63,14 +66,44 @@ class InferOutput:
     """
     Standardized output structure for LLM inference responses.
 
-    This dataclass encapsulates the common attributes returned by all LLM
-    inference calls, regardless of the provider.
+    Overview:
+    - Encapsulates the common attributes returned by local or API-based inference
+    - Designed to be serializable via `to_dict()` even when fields include complex objects
 
-    Attributes:
-        prompt (list): The input messages or prompt directly used for the inference request
-        response (str): The generated text content from the LLM
-        usages (Dict[str, int]): Token usage statistics for the request,
-         In general, the usages should include the `time_cost`, `prompt_token_cost`, and `generation_token_cost`.
+    Field Details:
+    - `prompt` (list):
+      The messages or prompt content used for the request. This can be:
+        - A list of plain dicts (e.g., `[{"role": "user", "content": "..."}]`)
+        - A list of framework-specific message objects (e.g., LangChain `HumanMessage`),
+          which `to_dict()` will recursively convert to serializable structures.
+
+    - `response` (str):
+      The final decoded text content produced by the model, typically trimmed of leading/trailing whitespace.
+
+    - `raw_response` (str):
+      The unmodified decoded text content prior to any stripping or cleanup. Useful for debugging or exact output reproduction.
+
+    - `cost` (InferCost):
+      Aggregated timing and token accounting information. `run()` populates `cost.time_used` after inference.
+
+    - `prompt_tokens` (Optional[List[str]]):
+      The textual representation of tokens belonging to the input prompt when available. Useful for debugging tokenization.
+
+    - `response_tokens` (Optional[List[str]]):
+      The textual representation of tokens belonging solely to the generated completion when available.
+
+    - `raw_response_tokens` (Optional[List[str]]):
+      The textual representation of the entire decoded output (including special tokens) without cleanup, when available.
+
+    - `extras` (Dict[str, Any]):
+      A catch-all for additional metadata. Examples:
+        - `{"tokens_text": [...]}`: full token texts for input + completion
+        - `{"image_grid_thw": [T, H', W']}`: visual backbone grid dims for multimodal models
+        - Any other per-model diagnostic or analysis information
+
+    Serialization:
+    - Use `to_dict()` to obtain a nested, JSON-friendly representation.
+      Complex objects (dataclasses, tensors, message classes) are converted recursively.
     """
 
     prompt: list
@@ -84,6 +117,50 @@ class InferOutput:
     raw_response_tokens: Optional[List[str]] = None
 
     extras: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self):
+        """
+        Convert this output into a JSON-friendly dict by recursively visiting
+        all fields and stringifying anything that is not directly serializable.
+        """
+
+        def _ser(obj):
+            if obj is None:
+                return None
+            if isinstance(obj, (str, int, float, bool)):
+                return obj
+            if dataclasses.is_dataclass(obj):
+                return _ser(asdict(obj))
+            if isinstance(obj, dict):
+                return {str(k): _ser(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple, set)):
+                return [_ser(v) for v in obj]
+            if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
+                try:
+                    return _ser(obj.to_dict())
+                except Exception:
+                    return str(obj)
+            if hasattr(obj, "dict") and callable(getattr(obj, "dict")):
+                try:
+                    return _ser(obj.dict())
+                except Exception:
+                    return str(obj)
+            if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
+                try:
+                    return _ser(obj.model_dump())
+                except Exception:
+                    return str(obj)
+            if hasattr(obj, "to_json") and callable(getattr(obj, "to_json")):
+                try:
+                    j = obj.to_json()
+                    if isinstance(j, str):
+                        return json.loads(j)
+                    return _ser(j)
+                except Exception:
+                    return str(obj)
+            return str(obj)
+
+        return _ser(self)
 
 
 class BaseLMAPIInference(ABC):
@@ -215,9 +292,7 @@ class BaseLMInference(ABC):
         )
 
         self.dtype = (
-            self.inference_config["dtype"]
-            if "dtype" in self.inference_config
-            else None
+            self.inference_config["dtype"] if "dtype" in self.inference_config else None
         )
         self.model = None
         self.tokenizer = None
@@ -239,7 +314,7 @@ class BaseLMInference(ABC):
         pass
 
     @abstractmethod
-    def _tokenize(self, infer_input: InferInput, **kwargs) -> Dict[str, Any]:
+    def _tokenize(self, infer_inputs: List[InferInput], **kwargs) -> Dict[str, Any]:
         """
         Convert `InferInput` into model-ready tensors and metadata.
 
@@ -259,7 +334,7 @@ class BaseLMInference(ABC):
         pass
 
     @abstractmethod
-    def _model_call(self, infer_input: InferInput, **kwargs) -> ModelInferOutput:
+    def _model_call(self, infer_inputs: List[InferInput], **kwargs) -> ModelInferOutput:
         """
         Execute the entire local/model-based inference pipeline from input to output.
 
@@ -284,18 +359,18 @@ class BaseLMInference(ABC):
         """
         pass
 
-    def run(self, infer_input: InferInput, **kwargs) -> ModelInferOutput:
+    def run(self, infer_inputs: List[InferInput], **kwargs) -> ModelInferOutput:
         """
         Invoke `_model_call` and populate `cost.time_used`.
 
         Args:
-            infer_input: Standardized inference input.
+            infer_inputs: Standardized inference inputs for a batch.
             **kwargs: Extra options passed through to `_model_call`.
 
         Returns:
             ModelInferOutput
         """
         start = time.time()
-        output = self._model_call(infer_input, **kwargs)
+        output = self._model_call(infer_inputs, **kwargs)
         output.cost.time_used = time.time() - start
         return output
