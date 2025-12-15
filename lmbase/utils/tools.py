@@ -7,8 +7,12 @@ import re
 import json
 import time
 import random
-from typing import List, Any, Union
+from typing import List, Any, Union, Dict
+
 import torch
+import dataclasses
+from dataclasses import asdict
+
 
 # Platform-specific locking imports
 try:
@@ -22,6 +26,56 @@ except ImportError:
     import msvcrt
 
     WINDOWS = True
+
+
+class BaseContainer:
+    """Base container for storing information."""
+
+    extras: Dict[str, Any] = None
+
+    def to_dict(self):
+        """
+        Convert this output into a JSON-friendly dict by recursively visiting
+        all fields and stringifying anything that is not directly serializable.
+        """
+
+        def _ser(obj):
+            if obj is None:
+                return None
+            if isinstance(obj, (str, int, float, bool)):
+                return obj
+            if dataclasses.is_dataclass(obj):
+                return _ser(asdict(obj))
+            if isinstance(obj, dict):
+                return {str(k): _ser(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple, set)):
+                return [_ser(v) for v in obj]
+            if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
+                try:
+                    return _ser(obj.to_dict())
+                except Exception:
+                    return str(obj)
+            if hasattr(obj, "dict") and callable(getattr(obj, "dict")):
+                try:
+                    return _ser(obj.dict())
+                except Exception:
+                    return str(obj)
+            if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
+                try:
+                    return _ser(obj.model_dump())
+                except Exception:
+                    return str(obj)
+            if hasattr(obj, "to_json") and callable(getattr(obj, "to_json")):
+                try:
+                    j = obj.to_json()
+                    if isinstance(j, str):
+                        return json.loads(j)
+                    return _ser(j)
+                except Exception:
+                    return str(obj)
+            return str(obj)
+
+        return _ser(self)
 
 
 def format_term(terminology: str):

@@ -15,9 +15,11 @@ from abc import ABC, abstractmethod
 
 import torch
 
+from lmbase.utils.tools import BaseContainer
+
 
 @dataclass
-class InferCost:
+class InferCost(BaseContainer):
     """
     Cost of the inference.
     """
@@ -26,11 +28,9 @@ class InferCost:
     prompt_tokens: int
     completion_tokens: int
 
-    extras: Dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
-class InferInput:
+class InferInput(BaseContainer):
     """
     Standardized input structure for LLM inference requests.
 
@@ -57,12 +57,11 @@ class InferInput:
     system_msg: str
     user_msg: Union[str, List[Any]]
 
-    extras: Dict[str, Any] = field(default_factory=dict)
     messages: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
-class InferOutput:
+class InferOutput(BaseContainer):
     """
     Standardized output structure for LLM inference responses.
 
@@ -115,52 +114,6 @@ class InferOutput:
     prompt_tokens: Optional[List[str]] = None
     response_tokens: Optional[List[str]] = None
     raw_response_tokens: Optional[List[str]] = None
-
-    extras: Dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self):
-        """
-        Convert this output into a JSON-friendly dict by recursively visiting
-        all fields and stringifying anything that is not directly serializable.
-        """
-
-        def _ser(obj):
-            if obj is None:
-                return None
-            if isinstance(obj, (str, int, float, bool)):
-                return obj
-            if dataclasses.is_dataclass(obj):
-                return _ser(asdict(obj))
-            if isinstance(obj, dict):
-                return {str(k): _ser(v) for k, v in obj.items()}
-            if isinstance(obj, (list, tuple, set)):
-                return [_ser(v) for v in obj]
-            if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
-                try:
-                    return _ser(obj.to_dict())
-                except Exception:
-                    return str(obj)
-            if hasattr(obj, "dict") and callable(getattr(obj, "dict")):
-                try:
-                    return _ser(obj.dict())
-                except Exception:
-                    return str(obj)
-            if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
-                try:
-                    return _ser(obj.model_dump())
-                except Exception:
-                    return str(obj)
-            if hasattr(obj, "to_json") and callable(getattr(obj, "to_json")):
-                try:
-                    j = obj.to_json()
-                    if isinstance(j, str):
-                        return json.loads(j)
-                    return _ser(j)
-                except Exception:
-                    return str(obj)
-            return str(obj)
-
-        return _ser(self)
 
 
 class BaseLMAPIInference(ABC):
