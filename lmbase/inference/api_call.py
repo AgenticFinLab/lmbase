@@ -103,9 +103,22 @@ class LangChainAPIInference(BaseLMAPIInference):
     ) -> InferOutput:
         """Synthesize the plans from the data samples."""
         # Prepare generation config
+
+        # Convert the LangChain's messages to OpenAI format, i.e., [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+        if isinstance(messages[0], dict):
+            openai_messages = messages
+        else:
+            ROLE_MAP = {
+                "system": "system",
+                "human": "user",
+                "ai": "assistant",
+            }
+            openai_messages = [
+                {"role": ROLE_MAP[m.type], "content": m.content} for m in messages
+            ]
         generation_params = {
             "model": self.model_name,
-            "messages": messages,
+            "messages": openai_messages,
         }
 
         # Merge with generation_config if provided
