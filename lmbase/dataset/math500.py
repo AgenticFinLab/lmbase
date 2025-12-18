@@ -13,7 +13,7 @@ class Math500Dataset(VisualTextBase):
         """Get the sample from the given idx."""
 
         # Create the sample
-        id = sample["unique_id"]
+        self.idx += 1
 
         # Create the question
         question = sample["problem"]
@@ -26,7 +26,7 @@ class Math500Dataset(VisualTextBase):
         cot_answer = sample["solution"]
 
         return TextSample(
-            main_id=id,
+            main_id=f"ID{self.idx}",
             split=self.split,
             question=question,
             cot_answer=cot_answer,
@@ -35,5 +35,6 @@ class Math500Dataset(VisualTextBase):
                 "dataset": self.hf_dataname,
                 "level": sample["level"],
                 "subject": sample["subject"],
+                "unique_id": sample["unique_id"],
             },
         )
