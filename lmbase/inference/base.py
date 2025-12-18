@@ -5,10 +5,8 @@ Base Classes and Core Definitions for LLM Inference:
 2. Model-based
 """
 
-import json
 import time
-from dataclasses import dataclass, field, asdict
-import dataclasses
+from dataclasses import dataclass
 
 from typing import Optional, List, Dict, Any, Union
 from abc import ABC, abstractmethod
@@ -264,7 +262,6 @@ class BaseLMInference(ABC):
         Returns:
             None
         """
-        pass
 
     @abstractmethod
     def _tokenize(self, infer_inputs: List[InferInput], **kwargs) -> Dict[str, Any]:
@@ -284,7 +281,6 @@ class BaseLMInference(ABC):
             If `self.processor` is available, subclasses may use it to preprocess
             multimodal inputs such as images/audio/video before tokenization.
         """
-        pass
 
     @abstractmethod
     def _model_call(self, infer_inputs: List[InferInput], **kwargs) -> ModelInferOutput:

@@ -5,27 +5,11 @@ Tools used by the whole project.
 import os
 import re
 import json
-import time
-import random
 from typing import List, Any, Union, Dict
 
-import torch
 import dataclasses
 from dataclasses import asdict
-
-
-# Platform-specific locking imports
-try:
-    # For MacOS/Linux
-    import fcntl
-
-    WINDOWS = False
-except ImportError:
-    fcntl = None
-    # For Windows
-    import msvcrt
-
-    WINDOWS = True
+import torch
 
 
 class BaseContainer:
@@ -191,97 +175,33 @@ def extract_labeled_segments(
 #
 # Saving:
 # - Provide a `savename` like "results_123" (base + id). The system selects the latest non-full
-#   `{base}_block_{idx}.json`, or creates `{idx+1}` when full.
+#   {base}_block_{idx}.json, or creates {idx+1} when full.
 # Loading:
-# - Given the same `savename`, the system searches `{base}_block_{idx}.json` files from newest to oldest.
-
-
-class FileLock:
-    """
-    Cross-platform file lock container to handle fcntl/msvcrt differences.
-
-    Provides consistent locking interface across Windows and Unix-like systems.
-    """
-
-    def __init__(self, file_handle, mode="r"):
-        self.fh = file_handle
-        self.mode = mode
-        self.is_locked = False
-
-    def acquire(self):
-        """Acquire exclusive lock on the file handle"""
-        if fcntl is not None:
-            # Unix-like systems with fcntl
-            fcntl.flock(self.fh.fileno(), fcntl.LOCK_EX)
-            self.is_locked = True
-        else:
-            # Windows system with msvcrt - requires binary mode
-            try:
-                # For Windows, we need to ensure the file is in binary mode
-                if "r" in self.mode and "+" in self.mode:
-                    # For r+ mode, lock the whole file
-                    msvcrt.locking(self.fh.fileno(), msvcrt.LK_LOCK, 1)
-                    self.is_locked = True
-                elif "w" in self.mode or "a" in self.mode:
-                    # For write/append modes, lock from current position to end
-                    current_pos = self.fh.tell()
-                    self.fh.seek(0, 2)  # Seek to end
-                    file_size = self.fh.tell()
-                    self.fh.seek(current_pos)  # Restore position
-                    if file_size > 0:
-                        msvcrt.locking(
-                            self.fh.fileno(), msvcrt.LK_LOCK, file_size - current_pos
-                        )
-                    self.is_locked = True
-            except Exception as e:
-                print(f"Warning: Failed to acquire lock on Windows: {e}")
-                # On Windows, sometimes locking fails; we'll continue without lock
-                self.is_locked = False
-
-    def release(self):
-        """Release lock on the file handle"""
-        if self.is_locked:
-            try:
-                if fcntl is not None:
-                    # Unix-like systems with fcntl
-                    fcntl.flock(self.fh.fileno(), fcntl.LOCK_UN)
-                else:
-                    # Windows system with msvcrt
-                    try:
-                        msvcrt.locking(self.fh.fileno(), msvcrt.LK_UNLCK, 1)
-                    except:
-                        # Sometimes unlocking fails on Windows, ignore
-                        pass
-            except Exception as e:
-                print(f"Warning: Failed to release lock: {e}")
-            finally:
-                self.is_locked = False
-
-    def __enter__(self):
-        self.acquire()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.release()
+# - Given the same `savename`, the system searches {base}_block_{idx}.json files from newest to oldest.
 
 
 class BlockBasedStoreManager:
     """
     Configurable block-based storage for JSON records.
 
-    Groups records under base-named block files and manages auto-incremented indices.
+    This manager groups records into multiple JSON files ("blocks") based on a common "base" name derived from the record key.
+    Instead of storing all records in a single monolithic file (which becomes slow to read/write), it distributes them
+    across `{base}_block_{idx}.json` files.
+
+    Key Features:
+    1. **Block-Based Storage**: Records are stored in files like `results_block_0.json`, `results_block_1.json`, etc.
+       This prevents any single file from becoming too large.
+    2. **Auto-Increment Index**: New blocks are created automatically when the current block reaches `block_size`.
+    3. **In-Memory Info Cache**: A dictionary (`current_block_info`) tracks the content and status of the *latest active* block only.
+       This optimizes memory usage by not holding the entire index in memory.
+       The full index is persisted to `{base}-store-information.json`.
+    4. **Sequential Access**: Designed for sequential saving without complex locking mechanisms (assumes single-writer or non-concurrent usage).
+    5. **Tensor Support**: PyTorch tensors are automatically saved to separate `.pt` files, with references stored in the JSON.
 
     Args:
-        folder (str): Directory to store block files.
-        file_format (str): File extension (defaults to 'json').
-        block_size (int): Maximum records per block (defaults to 1000).
-
-    Methods:
-        save(savename: str, data: Any) -> None: Save/update a record into a block.
-        load(savename: str) -> Any | None: Load a record across blocks.
-        list_blocks(base: str) -> List[str]: List block filenames for a base, ascending by index.
-        next_block_name(base: str) -> str: Compute next block filename for a base.
-        find_nonfull_block(base: str) -> str: Find the newest non-full block for a base.
+        folder (str): Directory where block files and indices will be stored.
+        file_format (str): File extension for blocks (default: "json").
+        block_size (int): Maximum number of records allowed per block file (default: 1000).
     """
 
     def __init__(
@@ -293,239 +213,314 @@ class BlockBasedStoreManager:
         self.folder = folder
         self.file_format = file_format
         self.block_size = block_size
+        # Cache only the active (latest) block info per base to save memory
+        # Structure: { base: { "block_filepath": ..., "ids": [...], "size": N } }
+        # Cache only the latest block info for each base in memory to save memory
+        self.current_block_info: Dict[str, Dict[str, Any]] = {}
+        # Info file naming pattern: {base}-store-information.json
+        self.info_file_pattern = "{}-store-information.json"
         os.makedirs(self.folder, exist_ok=True)
 
     @staticmethod
     def _extract_base(savename: str) -> str:
         """
-        Extract base name from savename by removing the trailing underscore and id.
+        Extract the base grouping key from a record name.
+
+        The system assumes record keys follow a pattern like `base_id` (e.g., `results_123`).
+        This method splits by the first underscore to isolate the `base` (e.g., `results`).
+        All records sharing the same `base` will be distributed across the same set of block files.
 
         Args:
-            savename (str): String in the format 'base_id', e.g., 'results_123'.
+            savename (str): Unique record key (e.g., "experiment_v1_42").
 
         Returns:
-            str: The base part of the savename, e.g., 'results'.
+            str: The extracted base name (e.g., "experiment").
         """
         return savename.split("_")[0]
 
     @staticmethod
-    def _safe_file_operation(
-        file_path: str, operation_func, *args, max_retries: int = 10, **kwargs
-    ):
+    def _update_block_file(path: str, savename: str, data: Any) -> bool:
         """
-        Run a file operation with retries for concurrent environments.
+        Read, update, and rewrite a specific block file.
+
+        This method handles the low-level I/O:
+        1. Reads existing JSON content (if any).
+        2. Inserts/Updates the record under `savename`.
+        3. Writes the updated dictionary back to disk atomically (via overwrite).
 
         Args:
-            file_path (str): Target file path.
-            operation_func (Callable[..., Any]): Function that performs the operation.
-            *args: Positional arguments passed to `operation_func`.
-            max_retries (int): Maximum retry attempts. Defaults to 10.
-            **kwargs: Keyword arguments passed to `operation_func`.
+            path (str): Full path to the block file.
+            savename (str): The specific key for the record.
+            data (Any): The JSON-serializable data to store.
 
         Returns:
-            Any: The return value from `operation_func`.
+            bool: True if a new key was added (increasing the count), False if an existing key was updated.
         """
-        for attempt in range(max_retries):
+        existing_data = {}
+        if os.path.exists(path):
             try:
-                return operation_func(file_path, *args, **kwargs)
-            except (OSError, IOError, json.JSONDecodeError) as e:
-                if attempt == max_retries - 1:
-                    raise e
-                time.sleep(random.uniform(0.1, 0.5))
-                continue
+                with open(path, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                existing_data = {}
 
-    @staticmethod
-    def _update_block_file(path: str, savename: str, data: Any) -> None:
-        """
-        Update a block file with a new record under key `savename`.
+        # Check if we are adding a new record or updating an old one
+        was_present = savename in existing_data
+        existing_data[savename] = data
 
-        Args:
-            path (str): Block file path to update.
-            savename (str): Record key.
-            data (Any): JSON-serializable content to write.
-        """
-        # For Windows, we need to handle file locking differently
-        if WINDOWS:
-            # On Windows, use a simpler approach with file reading/writing
-            # First read the existing data
-            existing_data = {}
-            if os.path.exists(path):
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        existing_data = json.load(f)
-                except (json.JSONDecodeError, IOError):
-                    existing_data = {}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(existing_data, f, default=str, ensure_ascii=False, indent=2)
 
-            # Update the data
-            existing_data[savename] = data
-
-            # Write back to file
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(existing_data, f, default=str, ensure_ascii=False, indent=2)
-        else:
-            # On Unix-like systems, use the original locking approach
-            with open(path, "r+", encoding="utf-8") as f:
-                # Use cross-platform lock container
-                with FileLock(f, mode="r+"):
-                    try:
-                        f.seek(0)
-                        existing_data = json.load(f)
-                        existing_data[savename] = data
-                        f.seek(0)
-                        f.truncate()
-                        json.dump(
-                            existing_data, f, default=str, ensure_ascii=False, indent=2
-                        )
-                    finally:
-                        pass
+        return not was_present
 
     def _pattern(self, base: str):
+        """Compile regex pattern to match block filenames for a given base (e.g., `base_block_(\\d+).json`)."""
         return re.compile(rf"^{re.escape(base)}_block_(\d+)\.{self.file_format}$")
 
     def _filename(self, base: str, idx: int) -> str:
+        """Generate the standard filename for a block: `{base}_block_{idx}.{ext}`."""
         return f"{base}_block_{idx}.{self.file_format}"
 
-    def list_blocks(self, base: str) -> List[str]:
-        """
-        List block files for a base, ascending by block index.
+    def _info_path(self, base: str) -> str:
+        """Generate the path for the info JSON file: `{base}-store-information.json`."""
+        return os.path.join(self.folder, self.info_file_pattern.format(base))
 
-        Args:
-            base (str): Base name.
-
-        Returns:
-            List[str]: Filenames sorted ascending by index.
+    def _get_full_info_from_disk(self, base: str) -> Dict[str, Any]:
         """
-        # Accumulate (index, filename) pairs for this base
-        pairs: List[tuple[int, str]] = []
+        Load the full info dictionary from disk.
+        If the file is missing or corrupted, it attempts to rebuild it by scanning block files.
+        """
+        path = self._info_path(base)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return self._rebuild_info(base)
+
+    def _get_latest_block_info_from_disk(
+        self, base: str
+    ) -> Union[Dict[str, Any], None]:
+        """
+        Retrieve the latest block info from the disk info file.
+        This allows us to resume saving from where we left off without loading the entire history into memory.
+        """
+        full_info = self._get_full_info_from_disk(base)
+        if not full_info:
+            return None
+
+        # The info file preserves insertion order. The last key is the latest block.
+        # Since Python 3.7+, dictionaries preserve insertion order, and we write in order, so the last key is the latest block.
+        latest_key = list(full_info.keys())[-1]
+        data = full_info[latest_key]
+        return {
+            "block_filepath": data["path"],
+            "ids": data["ids"],
+            "size": data["count"],
+        }
+
+    def _update_info_on_disk(self, base: str, block_info: Dict[str, Any]) -> None:
+        """
+        Update the info file on disk with the new state of a specific block.
+        This reads the full file, updates the specific block entry, and writes it back.
+        """
+        full_info = self._get_full_info_from_disk(base)
+
+        # We need to map back from flattened structure to filename-keyed structure
+        filepath = block_info["block_filepath"]
+        filename = os.path.basename(filepath)
+
+        full_info[filename] = {
+            "ids": block_info["ids"],
+            "count": block_info["size"],
+            "path": filepath,
+        }
+        self._save_info_to_disk(base, full_info)
+
+    def _rebuild_info(self, base: str) -> Dict[str, Any]:
+        """
+        Rebuild the info dictionary by scanning all block files.
+        Useful for recovery if the info file is deleted or corrupted.
+        """
+        info = {}
         pattern = self._pattern(base)
+        if not os.path.exists(self.folder):
+            return info
+
+        found_blocks = []
         for filename in os.listdir(self.folder):
             m = pattern.match(filename)
             if m:
-                pairs.append((int(m.group(1)), filename))
-        # Sort ascending by index to provide stable ordering
-        pairs.sort(key=lambda x: x[0])
-        return [fname for _, fname in pairs]
+                idx = int(m.group(1))
+                found_blocks.append((idx, filename))
 
-    def next_block_name(self, base: str) -> str:
-        """
-        Compute next block filename for a base.
+        # Sort by index to ensure insertion order in the dictionary
+        found_blocks.sort(key=lambda x: x[0])
 
-        Args:
-            base (str): Base name.
-
-        Returns:
-            str: Next filename `{base}_block_{idx}.{ext}`.
-        """
-        blocks = self.list_blocks(base)
-        if not blocks:
-            return self._filename(base, 0)
-        pattern = self._pattern(base)
-        # Take the last block and extract its numeric index
-        last = blocks[-1]
-        idx = int(pattern.match(last).group(1))
-        return self._filename(base, idx + 1)
-
-    def find_nonfull_block(self, base: str) -> str:
-        """
-        Find newest non-full block for a base.
-
-        Args:
-            base (str): Base name.
-
-        Returns:
-            str: Filename of a non-full block; empty string if none.
-        """
-        blocks = self.list_blocks(base)
-        for filename in reversed(blocks):
+        for _, filename in found_blocks:
             path = os.path.join(self.folder, filename)
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    # Parse and check occupancy; treat malformed JSON as non-candidate
                     data = json.load(f)
-                    if isinstance(data, dict) and len(data) < self.block_size:
-                        return filename
-            except (json.JSONDecodeError, FileNotFoundError, OSError, IOError):
-                # Ignore broken/missing files and continue searching
-                continue
-        return ""
+                    if isinstance(data, dict):
+                        info[filename] = {
+                            "ids": list(data.keys()),
+                            "count": len(data),
+                            "path": path,
+                        }
+            except (json.JSONDecodeError, OSError, IOError):
+                pass
+
+        self._save_info_to_disk(base, info)
+        return info
+
+    def _save_info_to_disk(self, base: str, info: Dict[str, Any]) -> None:
+        """Persist the info dictionary to disk."""
+        path = self._info_path(base)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(info, f, default=str, ensure_ascii=False, indent=2)
+
+    def list_blocks(self, base: str) -> List[str]:
+        """
+        List all existing block filenames for a given base from disk info.
+        """
+        info = self._get_full_info_from_disk(base)
+        pattern = self._pattern(base)
+
+        pairs = []
+        for filename in info.keys():
+            m = pattern.match(filename)
+            if m:
+                pairs.append((int(m.group(1)), filename))
+
+        pairs.sort(key=lambda x: x[0])
+        return [fname for _, fname in pairs]
 
     def save(self, savename: str, data: Any) -> None:
         """
-        Save a record to base-named blocks.
+        Save a record, automatically handling block allocation and info updates.
+
+        Workflow:
+        1. Prepare data (convert tensors to .pt, objects to strings).
+        2. Ensure active block info is in memory (load from disk if needed).
+        3. Check if current block is full; if so, create a new block.
+        4. Save data to the block file.
+        5. Update the info file on disk.
 
         Args:
-            savename (str): Record key (e.g., "results_123").
-            data (Any): JSON-serializable content.
+            savename (str): Unique identifier for the data (e.g. "task_1").
+            data (Any): The data to save.
         """
         base = self._extract_base(savename)
+        # 1. Check data type and prepare value (handled in _prepare_value_for_storage)
+        # 检查数据类型，如果是 Tensor 则存为 .pt 文件，否则转为 JSON 兼容格式
         value = self._prepare_value_for_storage(savename, data)
-        # Prefer the newest non-full block for this base; otherwise create a new one
-        target = self.find_nonfull_block(base)
-        if not target:
-            target = self.next_block_name(base)
-            path = os.path.join(self.folder, target)
+
+        # 2. Check if we have active info in memory
+        # 检查内存中是否有当前 base 的活跃 block 信息
+        if base not in self.current_block_info:
+            # Try to load the latest block info from disk
+            # 如果没有，尝试从磁盘的 info 文件加载最新的 block 信息
+            last_info = self._get_latest_block_info_from_disk(base)
+            if last_info:
+                self.current_block_info[base] = last_info
+            else:
+                # Initialize new block 0
+                # 如果磁盘也没有（全新开始），则初始化 block 0
+                first_block_name = self._filename(base, 0)
+                self.current_block_info[base] = {
+                    "block_filepath": os.path.join(self.folder, first_block_name),
+                    "ids": [],
+                    "size": 0,
+                }
+
+        active_info = self.current_block_info[base]
+
+        # 3. Check if we need to rotate to a new block
+        # Condition: Current is full AND we are not just updating an existing ID in it
+        # 如果当前 block 已满且不是在更新已有数据，则创建新 block
+        if (
+            active_info["size"] >= self.block_size
+            and savename not in active_info["ids"]
+        ):
+            # Create next block
+            current_filename = os.path.basename(active_info["block_filepath"])
+            m = self._pattern(base).match(current_filename)
+            current_idx = int(m.group(1)) if m else 0
+
+            new_block_name = self._filename(base, current_idx + 1)
+            active_info = {
+                "block_filepath": os.path.join(self.folder, new_block_name),
+                "ids": [],
+                "size": 0,
+            }
+            self.current_block_info[base] = active_info
+
+        # 4. Perform save
+        # 保存数据到 block 文件
+        path = active_info["block_filepath"]
+        if not os.path.exists(path):
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {savename: value}, f, default=str, ensure_ascii=False, indent=2
-                )
-        else:
-            path = os.path.join(self.folder, target)
-            # Execute the update under retry protection to mitigate transient IO errors
-            self._safe_file_operation(
-                path, self._update_block_file, savename, value, max_retries=10
-            )
+                json.dump({}, f, default=str, ensure_ascii=False, indent=2)
+
+        added = self._update_block_file(path, savename, value)
+
+        if added:
+            active_info["ids"].append(savename)
+            active_info["size"] += 1
+
+        # 5. Update global info
+        # 更新磁盘上的全局 info 文件
+        self._update_info_on_disk(base, active_info)
 
     def load(self, savename: str) -> Union[Any, None]:
         """
-        Load a record across base-named blocks.
-
-        Args:
-            savename (str): Record key (e.g., "results_123").
-
-        Returns:
-            Any | None: Record content when found; otherwise None.
+        Retrieve a record using the full info from disk.
         """
         base = self._extract_base(savename)
-        pattern = self._pattern(base)
-        # Collect all blocks for this base; if none, indicate absence
-        files = [name for name in os.listdir(self.folder) if pattern.match(name)]
-        if not files:
+        # For loading, we need the full index to find where the ID is
+        full_info = self._get_full_info_from_disk(base)
+
+        # Find which block contains the savename
+        target_block = None
+        for filename, block_data in full_info.items():
+            if savename in block_data.get("ids", []):
+                target_block = filename
+                break
+
+        if not target_block:
             return None
-        use_new = all(pattern.match(n) for n in files)
-        # Sort by descending index (newest first) for efficient lookup
-        ordered = (
-            sorted(files, key=lambda n: int(pattern.match(n).group(1)), reverse=True)
-            if use_new
-            else sorted(files, reverse=True)
-        )
-        for name in ordered:
-            path = os.path.join(self.folder, name)
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    # Return the first match encountered (newest block wins)
-                    data = json.load(f)
-                    if savename in data:
-                        return self._resolve_loaded_value(data[savename])
-            except (json.JSONDecodeError, OSError, IOError):
-                # Skip unreadable files and continue
-                continue
+
+        path = os.path.join(self.folder, target_block)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if savename in data:
+                    return self._resolve_loaded_value(data[savename])
+        except (json.JSONDecodeError, OSError, IOError):
+            pass
+
         return None
 
     def _prepare_value_for_storage(self, savename: str, data: Any) -> Any:
         """
-        Convert input data into a JSON-serializable value. If the data is a torch.Tensor
-        and torch is available, save it to a separate .pt file and store a reference.
+        Pre-process data before JSON serialization.
+
+        Special Handling:
+        - **torch.Tensor**: Saved to `{savename}.pt`. The JSON stores a reference dict:
+          `{"_type": "torch.tensor", "_path": "..."}`.
+        - **Non-serializable objects**: Converted to string via `str(data)`.
 
         Args:
             savename (str): Record key.
-            data (Any): Input data to persist.
+            data (Any): Raw data.
 
         Returns:
-            Any: JSON-serializable value (possibly a reference dict).
+            Any: JSON-safe representation.
         """
         if isinstance(data, torch.Tensor):
             tensor_path = os.path.join(self.folder, f"{savename}.pt")
-            # If the target file already exists, do not re-save
             if not os.path.exists(tensor_path):
                 torch.save(data, tensor_path)
             return {"_type": "torch.tensor", "_path": tensor_path}
@@ -537,14 +532,16 @@ class BlockBasedStoreManager:
 
     def _resolve_loaded_value(self, value: Any) -> Any:
         """
-        Resolve a stored value into its runtime object. If the value is a tensor reference,
-        load it via torch.load when available.
+        Post-process loaded JSON data to restore original objects.
+
+        Special Handling:
+        - **Tensor References**: Detects `{"_type": "torch.tensor"}` and loads the `.pt` file.
 
         Args:
-            value (Any): Stored value from JSON.
+            value (Any): Data loaded from JSON.
 
         Returns:
-            Any: Runtime data (e.g., torch.Tensor) or the original value.
+            Any: Restored object (e.g., torch.Tensor).
         """
         if (
             isinstance(value, dict)
