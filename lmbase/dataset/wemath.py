@@ -27,8 +27,9 @@ class WeMathDataset(VisualTextBase):
 
     def to_format(self, sample: dict):
         """Get the sample from the given idx."""
-        sample_id = sample["question number"]
         # Create the sample
+        sample_id = sample["question number"]
+
         question = sample["question"].strip()
 
         # extract all <imageN> tokens
