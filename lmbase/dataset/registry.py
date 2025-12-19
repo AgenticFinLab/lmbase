@@ -26,6 +26,7 @@ from lmbase.dataset import (
     dapomath,
     math500,
     wemath,
+    wemath2pro,
 )
 
 data_factory = {
@@ -46,6 +47,7 @@ data_factory = {
     "dapomath": dapomath.DAPOMathDataset,
     "math500": math500.Math500Dataset,
     "wemath": wemath.WeMathDataset,
+    "wemath2pro": wemath2pro.WeMath2ProDataset,
 }
 
 
@@ -68,6 +70,7 @@ hf_datasets = {
     "dapomath": "BytedTsinghua-SIA/DAPO-Math-17k",
     "math500": "HuggingFaceH4/MATH-500",
     "wemath": "We-Math/We-Math",
+    "wemath2pro": "We-Math/We-Math2.0-Pro",
 }
 
 
