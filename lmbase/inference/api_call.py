@@ -124,6 +124,12 @@ class LangChainAPIInference(BaseLMAPIInference):
         # Merge with generation_config if provided
         if self.generation_config:
             generation_params.update(self.generation_config)
+            if "max_new_tokens" in self.generation_config:
+                generation_params["max_tokens"] = self.generation_config[
+                    "max_new_tokens"
+                ]
+                generation_params.pop("max_new_tokens")
+
         else:
             # Set default max_tokens if not in generation_config
             generation_params["max_tokens"] = self.max_tokens
