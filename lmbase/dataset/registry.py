@@ -27,6 +27,7 @@ from lmbase.dataset import (
     math500,
     wemath,
     wemath2pro,
+    geometry3k,
 )
 
 data_factory = {
@@ -48,6 +49,7 @@ data_factory = {
     "math500": math500.Math500Dataset,
     "wemath": wemath.WeMathDataset,
     "wemath2pro": wemath2pro.WeMath2ProDataset,
+    "geometry3k": geometry3k.Geometry3kDataset,
 }
 
 
@@ -71,6 +73,7 @@ hf_datasets = {
     "math500": "HuggingFaceH4/MATH-500",
     "wemath": "We-Math/We-Math",
     "wemath2pro": "We-Math/We-Math2.0-Pro",
+    "geometry3k": "hiyouga/geometry3k",
 }
 
 
