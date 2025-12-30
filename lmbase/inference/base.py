@@ -22,9 +22,11 @@ class InferCost(BaseContainer):
     Cost of the inference.
     """
 
-    time_used: float
+    time_used: Any
     prompt_tokens: int
     completion_tokens: int
+
+    extras: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -56,6 +58,8 @@ class InferInput(BaseContainer):
     user_msg: Union[str, List[Any]]
 
     messages: Optional[List[Dict[str, Any]]] = None
+
+    extras: Optional[Dict[str, Any]] = None
 
 
 @dataclass

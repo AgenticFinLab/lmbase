@@ -208,6 +208,12 @@ class BlockBasedStoreManager:
     4. **Sequential Access**: Designed for sequential saving without complex locking mechanisms (assumes single-writer or non-concurrent usage).
     5. **Tensor Support**: PyTorch tensors are automatically saved to separate `.pt` files, with references stored in the JSON.
 
+    Naming and Keying:
+    - Block filenames: `{base}_block_{idx}.{ext}` (e.g., `orders_block_3.json`).
+    - Info filename: `{base}-store-information.json` (e.g., `orders-store-information.json`), keyed by block filename.
+    - Record key: the full `savename` string is used as the key in block JSON (not parsed). Uniqueness determines whether a save is "add" or "update".
+    - Base extraction: the `base` is the part before the first underscore in `savename` and decides which block family the record belongs to.
+
     Args:
         folder (str): Directory where block files and indices will be stored.
         file_format (str): File extension for blocks (default: "json").
@@ -246,6 +252,9 @@ class BlockBasedStoreManager:
         Returns:
             str: The extracted base name (e.g., "experiment").
         """
+        # Note: Only the base (before the first underscore) is used to choose block files.
+        # The remainder of `savename` is NOT parsed; the full `savename` string is used
+        # as the record key inside the block JSON.
         return savename.split("_")[0]
 
     @staticmethod
@@ -266,6 +275,9 @@ class BlockBasedStoreManager:
         Returns:
             bool: True if a new key was added (increasing the count), False if an existing key was updated.
         """
+        # The full `savename` string is the JSON key for the record within the block.
+        # If the key did not previously exist, we consider this an "add" (returns True),
+        # which increments the block's logical size and may trigger rotation when full.
         existing_data = {}
         if os.path.exists(path):
             try:
@@ -285,14 +297,18 @@ class BlockBasedStoreManager:
 
     def _pattern(self, base: str):
         """Compile regex pattern to match block filenames for a given base (e.g., `base_block_(\\d+).json`)."""
+        # Captures the numeric index `(\\d+)` of block filenames belonging to `base`.
         return re.compile(rf"^{re.escape(base)}_block_(\d+)\.{self.file_format}$")
 
     def _filename(self, base: str, idx: int) -> str:
         """Generate the standard filename for a block: `{base}_block_{idx}.{ext}`."""
+        # Example: base="orders", idx=3, ext="json" => "orders_block_3.json"
         return f"{base}_block_{idx}.{self.file_format}"
 
     def _info_path(self, base: str) -> str:
         """Generate the path for the info JSON file: `{base}-store-information.json`."""
+        # The info file is a dictionary keyed by block filename, with values:
+        # { "ids": [...], "count": <int>, "path": "<absolute_path_to_block_file>" }
         return os.path.join(self.folder, self.info_file_pattern.format(base))
 
     def _get_full_info_from_disk(self, base: str) -> Dict[str, Any]:
@@ -341,6 +357,10 @@ class BlockBasedStoreManager:
         filepath = block_info["block_filepath"]
         filename = os.path.basename(filepath)
 
+        # Persist block metadata back under its filename key:
+        # - "ids": list of record keys present in that block
+        # - "count": number of records in that block
+        # - "path": absolute path to the block file
         full_info[filename] = {
             "ids": block_info["ids"],
             "count": block_info["size"],
@@ -374,6 +394,7 @@ class BlockBasedStoreManager:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, dict):
+                        # Build info entry keyed by block filename with ids/count/path
                         info[filename] = {
                             "ids": list(data.keys()),
                             "count": len(data),
@@ -423,17 +444,21 @@ class BlockBasedStoreManager:
             data (Any): The data to save.
         """
         base = self._extract_base(savename)
-        # 1. Check data type and prepare value (handled in _prepare_value_for_storage), if is a tensor, convert to .pt file, else convert to JSON-compatible format
+        # 1. Check data type and prepare value (handled in _prepare_value_for_storage)
+        # Check data type. Tensors are saved as .pt with a JSON reference; other values are JSON-serialized.
         value = self._prepare_value_for_storage(savename, data)
 
         # 2. Check if we have active info in memory
+        # Ensure we have the latest block info for this base in memory, otherwise try loading from disk.
         if base not in self.current_block_info:
             # Try to load the latest block info from disk
+            # Info file uses insertion order; the last entry is the latest block.
             last_info = self._get_latest_block_info_from_disk(base)
             if last_info:
                 self.current_block_info[base] = last_info
             else:
                 # Initialize new block 0
+                # No existing blocks found; start with `{base}_block_0.{ext}`.
                 first_block_name = self._filename(base, 0)
                 self.current_block_info[base] = {
                     "block_filepath": os.path.join(self.folder, first_block_name),
@@ -445,6 +470,8 @@ class BlockBasedStoreManager:
 
         # 3. Check if we need to rotate to a new block
         # Condition: Current is full AND we are not just updating an existing ID in it
+        # Rotation only happens on "adds". If you reuse the same `savename`, it's an update
+        # and does not increment `size`, so rotation will not occur.
         if (
             active_info["size"] >= self.block_size
             and savename not in active_info["ids"]
@@ -463,6 +490,7 @@ class BlockBasedStoreManager:
             self.current_block_info[base] = active_info
 
         # 4. Perform save
+        # Persist the record into the chosen block file under key `savename`.
         path = active_info["block_filepath"]
         if not os.path.exists(path):
             with open(path, "w", encoding="utf-8") as f:
@@ -475,6 +503,7 @@ class BlockBasedStoreManager:
             active_info["size"] += 1
 
         # 5. Update global info
+        # Write the updated block metadata back into `{base}-store-information.json`.
         self._update_info_on_disk(base, active_info)
 
     def load(self, savename: str) -> Union[Any, None]:
@@ -486,6 +515,8 @@ class BlockBasedStoreManager:
         full_info = self._get_full_info_from_disk(base)
 
         # Find which block contains the savename
+        # Scan the info dictionary for a block whose `ids` list contains `savename`.
+        # Once found, open that block file and return the record.
         target_block = None
         for filename, block_data in full_info.items():
             if savename in block_data.get("ids", []):
