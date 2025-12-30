@@ -113,6 +113,8 @@ class InferOutput(BaseContainer):
     response_tokens: Optional[List[str]] = None
     raw_response_tokens: Optional[List[str]] = None
 
+    extras: Dict[str, Any] = None
+
 
 class BaseLMAPIInference(ABC):
     """
