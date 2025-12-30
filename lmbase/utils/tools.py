@@ -21,6 +21,7 @@ class BaseContainer:
         """
         Convert this output into a JSON-friendly dict by recursively visiting
         all fields and stringifying anything that is not directly serializable.
+        Tensors are preserved in their original form.
         """
 
         def _ser(obj):
@@ -28,11 +29,18 @@ class BaseContainer:
                 return None
             if isinstance(obj, (str, int, float, bool)):
                 return obj
+
+            # if it is a tensor, directly return it
+            if isinstance(obj, torch.Tensor):
+                return obj
+
             if dataclasses.is_dataclass(obj):
                 return _ser(asdict(obj))
             if isinstance(obj, dict):
+                # _ser will be recursively called, so the nested tensors will also be captured by the above check
                 return {str(k): _ser(v) for k, v in obj.items()}
             if isinstance(obj, (list, tuple, set)):
+                # _ser will be recursively called
                 return [_ser(v) for v in obj]
             if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
                 try:
@@ -57,6 +65,8 @@ class BaseContainer:
                     return _ser(j)
                 except Exception:
                     return str(obj)
+
+            # for any other unserializable object, convert it to string
             return str(obj)
 
         return _ser(self)
@@ -413,21 +423,17 @@ class BlockBasedStoreManager:
             data (Any): The data to save.
         """
         base = self._extract_base(savename)
-        # 1. Check data type and prepare value (handled in _prepare_value_for_storage)
-        # 检查数据类型，如果是 Tensor 则存为 .pt 文件，否则转为 JSON 兼容格式
+        # 1. Check data type and prepare value (handled in _prepare_value_for_storage), if is a tensor, convert to .pt file, else convert to JSON-compatible format
         value = self._prepare_value_for_storage(savename, data)
 
         # 2. Check if we have active info in memory
-        # 检查内存中是否有当前 base 的活跃 block 信息
         if base not in self.current_block_info:
             # Try to load the latest block info from disk
-            # 如果没有，尝试从磁盘的 info 文件加载最新的 block 信息
             last_info = self._get_latest_block_info_from_disk(base)
             if last_info:
                 self.current_block_info[base] = last_info
             else:
                 # Initialize new block 0
-                # 如果磁盘也没有（全新开始），则初始化 block 0
                 first_block_name = self._filename(base, 0)
                 self.current_block_info[base] = {
                     "block_filepath": os.path.join(self.folder, first_block_name),
@@ -439,7 +445,6 @@ class BlockBasedStoreManager:
 
         # 3. Check if we need to rotate to a new block
         # Condition: Current is full AND we are not just updating an existing ID in it
-        # 如果当前 block 已满且不是在更新已有数据，则创建新 block
         if (
             active_info["size"] >= self.block_size
             and savename not in active_info["ids"]
@@ -458,7 +463,6 @@ class BlockBasedStoreManager:
             self.current_block_info[base] = active_info
 
         # 4. Perform save
-        # 保存数据到 block 文件
         path = active_info["block_filepath"]
         if not os.path.exists(path):
             with open(path, "w", encoding="utf-8") as f:
@@ -471,7 +475,6 @@ class BlockBasedStoreManager:
             active_info["size"] += 1
 
         # 5. Update global info
-        # 更新磁盘上的全局 info 文件
         self._update_info_on_disk(base, active_info)
 
     def load(self, savename: str) -> Union[Any, None]:
@@ -503,32 +506,61 @@ class BlockBasedStoreManager:
 
         return None
 
-    def _prepare_value_for_storage(self, savename: str, data: Any) -> Any:
+    def _prepare_value_for_storage(
+        self, savename: str, data: Any, path: str = ""
+    ) -> Any:
         """
         Pre-process data before JSON serialization.
 
         Special Handling:
-        - **torch.Tensor**: Saved to `{savename}.pt`. The JSON stores a reference dict:
-          `{"_type": "torch.tensor", "_path": "..."}`.
+        - **torch.Tensor**: Saved to `{savename}_{path}.pt`. The JSON stores a reference dict:
+        `{"_type": "torch.tensor", "_path": "..."}`.
         - **Non-serializable objects**: Converted to string via `str(data)`.
 
         Args:
             savename (str): Record key.
             data (Any): Raw data.
+            path (str): Current path in the data structure (for nested tensors).
 
         Returns:
             Any: JSON-safe representation.
         """
+        # Handle tensors
         if isinstance(data, torch.Tensor):
-            tensor_path = os.path.join(self.folder, f"{savename}.pt")
+            # Create a unique path for this tensor
+            tensor_name = f"{savename}_{path.replace('.', '_')}" if path else savename
+            tensor_dir = os.path.join(self.folder, "tensors")
+            os.makedirs(tensor_dir, exist_ok=True)
+            tensor_path = os.path.join(tensor_dir, f"{tensor_name}.pt")
             if not os.path.exists(tensor_path):
                 torch.save(data, tensor_path)
             return {"_type": "torch.tensor", "_path": tensor_path}
-        try:
-            json.dumps(data)
-            return data
-        except TypeError:
-            return str(data)
+
+        # Handle dictionaries by recursively processing each value
+        elif isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                new_path = f"{path}.{key}" if path else key
+                result[key] = self._prepare_value_for_storage(savename, value, new_path)
+            return result
+
+        # Handle lists/tuples by recursively processing each element
+        elif isinstance(data, (list, tuple)):
+            result = []
+            for i, value in enumerate(data):
+                new_path = f"{path}[{i}]" if path else f"[{i}]"
+                result.append(
+                    self._prepare_value_for_storage(savename, value, new_path)
+                )
+            return result
+
+        # Handle other data types
+        else:
+            try:
+                json.dumps(data)
+                return data
+            except TypeError:
+                return str(data)
 
     def _resolve_loaded_value(self, value: Any) -> Any:
         """
@@ -543,6 +575,7 @@ class BlockBasedStoreManager:
         Returns:
             Any: Restored object (e.g., torch.Tensor).
         """
+        # Handle tensor references
         if (
             isinstance(value, dict)
             and value.get("_type") == "torch.tensor"
@@ -551,4 +584,20 @@ class BlockBasedStoreManager:
             tensor_path = value["_path"]
             if os.path.exists(tensor_path):
                 return torch.load(tensor_path)
+
+        # Handle dictionaries by recursively processing each value
+        elif isinstance(value, dict):
+            result = {}
+            for key, val in value.items():
+                result[key] = self._resolve_loaded_value(val)
+            return result
+
+        # Handle lists/tuples by recursively processing each element
+        elif isinstance(value, list):
+            result = []
+            for val in value:
+                result.append(self._resolve_loaded_value(val))
+            return result
+
+        # Return the value as is for other types
         return value
