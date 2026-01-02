@@ -2,9 +2,6 @@
 Interface of the MMLU dataset.
 """
 
-import os
-import ast
-
 from datasets import load_dataset
 
 from lmbase.identifier import OPTION_SOLUTION_PROMPT
@@ -28,7 +25,6 @@ class MMLUDataset(VisualTextBase):
     def to_format(self, sample: dict):
         """Get the sample from the given idx."""
 
-        sample_id = self.idx
         self.idx += 1
 
         # Create the sample
@@ -52,7 +48,7 @@ class MMLUDataset(VisualTextBase):
         groundtruth = chr(ord("A") + sample["answer"])
 
         return TextSample(
-            main_id=sample_id,
+            main_id=f"ID{self.idx}",
             question=question,
             cot_answer="",
             groundtruth=groundtruth,
