@@ -17,7 +17,7 @@ import os
 import json
 import random
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Any
 from dataclasses import dataclass
 
 from datasets import load_dataset, config as hf_config
@@ -67,7 +67,7 @@ class TextCodeSample(TextSample):
     """
 
     # Test samples
-    test_cases: str = None
+    test_cases: Any = None
 
 
 @dataclass
