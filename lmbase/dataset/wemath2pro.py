@@ -5,8 +5,6 @@ Interface of the We-Math-2.0-Pro dataset.
 import os
 import re
 import logging
-
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 from lmbase.dataset.base import VisualTextSample, VisualTextBase
 
 
@@ -150,10 +148,10 @@ class WeMath2ProDataset(VisualTextBase):
                         for letter, opt in zip(option_letters, final_parsed_options)
                     ]
                 )
-                question = f"{final_question_text} \nOptions:\n{options_str} {MATH_SOLUTION_PROMPT}"
+                question = f"{final_question_text} \nOptions:\n{options_str} {self.SOLUTION_FORMAT_PROMPT}"
             else:
                 # No options found in question, just add the solution prompt
-                question = f"{question} {MATH_SOLUTION_PROMPT}\n"
+                question = f"{question}{self.SOLUTION_FORMAT_PROMPT}\n"
 
         cot_answer = sample.get("solution", "") or ""
 

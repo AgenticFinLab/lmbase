@@ -6,8 +6,6 @@ import os
 import ast
 import re
 import logging
-
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 from lmbase.dataset.base import VisualTextSample, VisualTextBase
 
 
@@ -51,7 +49,7 @@ class MathVisionDataset(VisualTextBase):
         # process the options
         options = sample.get("options", [])
         if options is None or len(options) == 0:
-            question = f"{question} {MATH_SOLUTION_PROMPT}\n"
+            question = f"{question}{self.SOLUTION_FORMAT_PROMPT}\n"
         else:
             try:
                 if isinstance(options, str):
@@ -63,7 +61,7 @@ class MathVisionDataset(VisualTextBase):
                         for letter, opt in zip(option_letters, options)
                     ]
                 )
-                question = f"{question} {MATH_SOLUTION_PROMPT}\nOptions:\n{options_str}"
+                question = f"{question}{self.SOLUTION_FORMAT_PROMPT}\nOptions:\n{options_str}"
             except Exception as e:
                 logging.warning(
                     "Failed to parse options for sample %s: %s",

@@ -51,7 +51,7 @@ class AIME2025Dataset(VisualTextBase):
 
         # Create the sample
         problem = sample["question"]
-        question = f"{problem}{self.solution_format_prompt}"
+        question = f"{problem}{self.SOLUTION_FORMAT_PROMPT}"
         answer = sample["answer"]
 
         return TextSample(

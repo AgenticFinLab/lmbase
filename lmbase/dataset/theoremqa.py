@@ -4,9 +4,7 @@ Interface of the TheoremQA dataset.
 
 import os
 
-
 from lmbase.dataset.base import VisualTextSample, VisualTextBase
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
 class TheoremQADataset(VisualTextBase):
@@ -28,7 +26,7 @@ class TheoremQADataset(VisualTextBase):
 
         # Create the sample
         question = sample["Question"]
-        question = f"{question} {MATH_SOLUTION_PROMPT}"
+        question = f"{question}{self.SOLUTION_FORMAT_PROMPT}"
         image_data = sample["Picture"]
         q_image = None
 

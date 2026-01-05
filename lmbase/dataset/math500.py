@@ -3,7 +3,6 @@ Interface of the MATH-500 dataset.
 """
 
 from lmbase.dataset.base import TextSample, VisualTextBase
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
 class Math500Dataset(VisualTextBase):
@@ -17,7 +16,7 @@ class Math500Dataset(VisualTextBase):
 
         # Create the question
         question = sample["problem"]
-        question = f"{question} {MATH_SOLUTION_PROMPT}"
+        question = f"{question}{self.SOLUTION_FORMAT_PROMPT}"
 
         # extract the groundtruth
         groundtruth = sample["answer"]

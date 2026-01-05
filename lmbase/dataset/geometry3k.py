@@ -5,8 +5,6 @@ Interface of the geometry3k dataset.
 import os
 import re
 import logging
-
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 from lmbase.dataset.base import VisualTextSample, VisualTextBase
 
 
@@ -90,7 +88,7 @@ class Geometry3kDataset(VisualTextBase):
             if save_path is not None:
                 question_images.append((token, save_path))
 
-        question = f"{question} {MATH_SOLUTION_PROMPT}"
+        question = f"{question}{self.SOLUTION_FORMAT_PROMPT}"
 
         cot_answer = ""
 

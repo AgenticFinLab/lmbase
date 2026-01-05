@@ -5,7 +5,6 @@ Interface of the MATH dataset.
 from math_verify import LatexExtractionConfig, parse
 
 from lmbase.dataset.base import TextSample, VisualTextBase
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
 class MATHDataset(VisualTextBase):
@@ -27,7 +26,7 @@ class MATHDataset(VisualTextBase):
         )
         groundtruth_sol = "" if len(groundtruth_sol) == 0 else groundtruth_sol[-1]
         problem = sample["problem"]
-        question = f"{problem} {MATH_SOLUTION_PROMPT}"
+        question = f"{problem}{self.SOLUTION_FORMAT_PROMPT}"
 
         return TextSample(
             main_id=f"ID{self.idx}",

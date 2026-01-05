@@ -3,7 +3,6 @@ Interface of the AIME19832024 dataset.
 """
 
 from lmbase.dataset.base import TextSample, VisualTextBase
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
 class AIME19832024Dataset(VisualTextBase):
@@ -17,7 +16,7 @@ class AIME19832024Dataset(VisualTextBase):
         # opt = re_utility.extract_format_equations(cot_answer,
         groundtruth_sol = sample["Answer"]
         problem = sample["Question"]
-        question = f"{problem} {MATH_SOLUTION_PROMPT}"
+        question = f"{problem}{self.SOLUTION_FORMAT_PROMPT}"
 
         return TextSample(
             main_id=sample["ID"],

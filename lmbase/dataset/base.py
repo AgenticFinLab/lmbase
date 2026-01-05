@@ -138,8 +138,11 @@ class VisualTextBase(Dataset):
         # The config of the dataset
         self.config = config if config is not None else {}
 
-        # The solution prompt to append to the question
-        self.solution_format_prompt = self.config.get("solution_format_prompt", "\n")
+        # The solution prompt to append to the question (config-driven constant)
+        self.SOLUTION_FORMAT_PROMPT = self.config.get(
+            "SOLUTION_FORMAT_PROMPT",
+            "\n",
+        )
 
         # The hf_dataset of the desired split.
         self.hf_dataset = None

@@ -5,7 +5,6 @@ Interface of the DAPO-Math-17k dataset.
 import re
 
 from lmbase.dataset.base import TextSample, VisualTextBase
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
 class DAPOMathDataset(VisualTextBase):
@@ -31,7 +30,7 @@ class DAPOMathDataset(VisualTextBase):
         question = match.group(1).strip()
 
         # Create the question
-        question = f"{question} {MATH_SOLUTION_PROMPT}"
+        question = f"{question}{self.SOLUTION_FORMAT_PROMPT}"
 
         return TextSample(
             main_id=id,
