@@ -4,7 +4,6 @@ Interface of the AIME2025 dataset.
 
 from datasets import load_dataset, config as hf_config
 from lmbase.dataset.base import TextSample, VisualTextBase
-from lmbase.identifier import MATH_SOLUTION_PROMPT
 import logging
 
 
@@ -52,7 +51,7 @@ class AIME2025Dataset(VisualTextBase):
 
         # Create the sample
         problem = sample["question"]
-        question = f"{problem} {MATH_SOLUTION_PROMPT}"
+        question = f"{problem}{self.solution_format_prompt}"
         answer = sample["answer"]
 
         return TextSample(
