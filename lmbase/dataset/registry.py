@@ -33,6 +33,8 @@ from lmbase.dataset import (
     geometry3k,
     mmlu,
     gpqad,
+    medqa,
+    arc,
 )
 
 data_factory = {
@@ -60,6 +62,8 @@ data_factory = {
     "geometry3k": geometry3k.Geometry3kDataset,
     "mmlu": mmlu.MMLUDataset,
     "gpqad": gpqad.GPQADiamondDataset,
+    "medqa": medqa.MedQADataset,
+    "arc": arc.ARCDataset,
 }
 
 
@@ -89,6 +93,8 @@ hf_datasets = {
     "geometry3k": "hiyouga/geometry3k",
     "mmlu": "cais/mmlu",
     "gpqad": "fingertap/GPQA-Diamond",
+    "medqa": "openlifescienceai/medqa",
+    "arc": "allenai/ai2_arc",
 }
 
 

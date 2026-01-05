@@ -10,11 +10,19 @@ import logging
 class AIME2025Dataset(VisualTextBase):
     """A consistent interface for the AIME2025 dataset."""
 
-    def __init__(self, split="AIME2025-I", **kwargs):
-        if split not in ["AIME2025-I", "AIME2025-II"]:
+    def __init__(self, split="test", **kwargs):
+        config = kwargs.get("config", {})
+        if "subset" not in config:
             raise ValueError(
-                f"Split must be 'AIME2025-I' or 'AIME2025-II', got {split}"
+                "Config must contain 'subset' key for AIME2025Dataset, "
+                "specifying 'AIME2025-I' or 'AIME2025-II'"
             )
+        subset = config["subset"]
+        if subset not in ["AIME2025-I", "AIME2025-II"]:
+            raise ValueError(
+                f"Subset must be 'AIME2025-I' or 'AIME2025-II', got {subset}"
+            )
+        self.subset = subset
         super().__init__(split=split, **kwargs)
 
     def map_dataset(self):
@@ -23,11 +31,11 @@ class AIME2025Dataset(VisualTextBase):
         """
         if self.hf_dataset is None:
             logging.info("   - HF cache directory: %s", hf_config.HF_DATASETS_CACHE)
-            # Use self.split as the subset configuration, and "train" as the HF split
+            # Use self.subset as the subset configuration, and self.split as the HF split
             self.hf_dataset = load_dataset(
                 self.hf_dataname,
-                self.split,
-                split="test",
+                self.subset,
+                split=self.split,
             )
 
         logging.info(
@@ -62,6 +70,6 @@ class AIME2025Dataset(VisualTextBase):
             groundtruth=answer,
             sample_info={
                 "dataset": self.hf_dataname,
-                "subset": self.split,
+                "subset": self.subset,
             },
         )

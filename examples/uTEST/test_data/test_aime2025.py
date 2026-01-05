@@ -25,15 +25,14 @@ def run():
             "data_name": "aime2025",
             "data_path": "EXPERIMENT/data/aime2025",
             "SOLUTION_FORMAT_PROMPT": MATH_SOLUTION_PROMPT,
+            "subset": "AIME2025-I",
         },
-        "AIME2025-I",
+        "test",
     )
     print("Dataset I loaded:", ds)
     if len(ds) > 0:
         s = ds[0]
-        print("Sample 0:", s)
-        print("Question:", s["question"])
-        print("Groundtruth:", s["groundtruth"])
+        print(s)
 
     # Test AIME2025-II loading
     print("\nTesting AIME2025-II...")
@@ -42,15 +41,14 @@ def run():
             "data_name": "aime2025",
             "data_path": "EXPERIMENT/data/aime2025",
             "SOLUTION_FORMAT_PROMPT": MATH_SOLUTION_PROMPT,
+            "subset": "AIME2025-II",
         },
-        "AIME2025-II",
+        "test",
     )
     print("Dataset II loaded:", ds2)
     if len(ds2) > 0:
         s2 = ds2[0]
-        print("Sample 0:", s2)
-        print("Question:", s2["question"])
-        print("Groundtruth:", s2["groundtruth"])
+        print(s2)
 
 
 if __name__ == "__main__":
