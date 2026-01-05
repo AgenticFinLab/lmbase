@@ -13,7 +13,6 @@ from lmbase.dataset import registry as dataset_registry
 from lmbase.identifier import MATH_SOLUTION_PROMPT
 
 
-
 def run():
     """
     Load AIME2025 `AIME2025-I` split.
@@ -33,8 +32,8 @@ def run():
     if len(ds) > 0:
         s = ds[0]
         print("Sample 0:", s)
-        print("Question:", s.question)
-        print("Groundtruth:", s.groundtruth)
+        print("Question:", s["question"])
+        print("Groundtruth:", s["groundtruth"])
 
     # Test AIME2025-II loading
     print("\nTesting AIME2025-II...")
@@ -50,8 +49,8 @@ def run():
     if len(ds2) > 0:
         s2 = ds2[0]
         print("Sample 0:", s2)
-        print("Question:", s2.question)
-        print("Groundtruth:", s2.groundtruth)
+        print("Question:", s2["question"])
+        print("Groundtruth:", s2["groundtruth"])
 
 
 if __name__ == "__main__":
