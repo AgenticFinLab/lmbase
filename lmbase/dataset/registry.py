@@ -32,6 +32,7 @@ from lmbase.dataset import (
     wemath2pro,
     geometry3k,
     mmlu,
+    gpqad,
 )
 
 data_factory = {
@@ -58,6 +59,7 @@ data_factory = {
     "wemath2pro": wemath2pro.WeMath2ProDataset,
     "geometry3k": geometry3k.Geometry3kDataset,
     "mmlu": mmlu.MMLUDataset,
+    "gpqad": gpqad.GPQADiamondDataset,
 }
 
 
@@ -86,6 +88,7 @@ hf_datasets = {
     "wemath2pro": "We-Math/We-Math2.0-Pro",
     "geometry3k": "hiyouga/geometry3k",
     "mmlu": "cais/mmlu",
+    "gpqad": "fingertap/GPQA-Diamond",
 }
 
 
