@@ -44,19 +44,18 @@ Paper: "STaRK: Benchmarking LLM Retrieval on Textual and Relational Knowledge Ba
         https://arxiv.org/abs/2404.13207
 """
 
+import logging
 from datasets import load_dataset
-
+from stark_qa import load_skb
 from lmbase.dataset.base import TextSample, VisualTextBase
 
 
 class STaRKDataset(VisualTextBase):
-    """A consistent interface for the STaRK dataset."""
+    """A consistent interface for the STaRK dataset with SKB support."""
 
     def map_dataset(self):
-        """Map the dataset to the desired format."""
-
+        """Map the dataset and load the corresponding SKB."""
         subset_name = self.config["subset"]
-        # Map subset name to config name
         config_map = {
             "amazon": "STaRK-Amazon",
             "mag": "STaRK-MAG",
@@ -64,23 +63,28 @@ class STaRKDataset(VisualTextBase):
         }
         config_name = config_map[subset_name]
 
-        # Load dataset using HuggingFace with config
+        # 1. 加载 QA 数据集
+        logging.info(f"   - 加载 QA 数据集: {config_name}, split: {self.split}")
         self.hf_dataset = load_dataset(self.hf_dataname, config_name, split=self.split)
+
+        # 2. 加载对应的 SKB 知识库数据
+        logging.info(f"   - 加载 SKB 知识库: {subset_name}")
+        self.skb = load_skb(subset_name, download_processed=True)
+        logging.info(f"   - SKB 加载完成: {self.skb is not None}")
+
         super().map_dataset()
 
     def to_format(self, sample):
-        """Get the sample from the given idx."""
+        """Get the sample and enrich with SKB info if needed."""
         self.idx += 1
-
-        # Extract fields from the HuggingFace dataset format
         query = sample["query"]
         answer_ids = sample["answer_ids"]
 
-        # Convert answer_ids to string for groundtruth
+        # 将 ID 转换为字符串
         if isinstance(answer_ids, list):
-            answer = ", ".join(str(aid) for aid in answer_ids)
+            answer_str = ", ".join(str(aid) for aid in answer_ids)
         else:
-            answer = str(answer_ids)
+            answer_str = str(answer_ids)
 
         question = f"{query}{self.SOLUTION_FORMAT_PROMPT}"
 
@@ -88,9 +92,10 @@ class STaRKDataset(VisualTextBase):
             main_id=f"ID{self.idx}",
             split=self.split,
             question=question,
-            cot_answer=answer,
-            groundtruth=answer,
+            cot_answer=answer_str,
+            groundtruth=answer_str,
             sample_info={
                 "dataset": self.hf_dataname,
+                "has_skb": self.skb is not None
             },
         )

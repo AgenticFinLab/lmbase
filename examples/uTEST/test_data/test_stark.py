@@ -36,7 +36,7 @@ def run():
     ds = dataset_registry.get(
         {
             "data_name": "stark",
-            "data_path": "EXPERIMENT/data/stark",
+            "data_path": "./EXPERIMENT/data/stark",
             "subset": "prime",  # or "amazon" or "mag"
         },
         "synthesized_all_split",
