@@ -15,5 +15,5 @@ txtai
 dotenv
 typing
 qwen_vl_utils
-vllm
+# vllm
 math_verify
