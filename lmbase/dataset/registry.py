@@ -46,6 +46,7 @@ data_factory = {
     "fincot": ("lmbase.dataset.fincot", "FinCoTDataset"),
     "multiarith": ("lmbase.dataset.multiarith", "MultiArithDataset"),
     "codeforcescots": ("lmbase.dataset.codeforcescots", "CodeForcesCoTSDataset"),
+    "multiarith": ("lmbase.dataset.multiarith", "MultiArithDataset"),
 }
 
 
@@ -92,6 +93,7 @@ hf_datasets = {
     "fincot": "TheFinAI/FinCoT",
     "multiarith": "ChilleD/MultiArith",
     "codeforcescots": "open-r1/codeforces-cots",
+    "multiarith": "ChilleD/MultiArith",
 }
 
 
