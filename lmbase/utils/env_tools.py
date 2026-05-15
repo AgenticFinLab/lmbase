@@ -41,11 +41,13 @@ def set_seed(seed: int):
         torch.backends.cudnn.benchmark = False
 
 
-def get_device(device: str = "auto") -> torch.device:
+def get_device(device: Any = "auto") -> torch.device:
     """Get compute device based on config or auto-detection.
 
     Args:
-        device: Device specification from config.
+        device: Device specification from config. Accepts either a string
+            or an already-resolved `torch.device` (passthrough).
+            - `torch.device`: returned unchanged (idempotent).
             - "auto": Auto-detect best available (cuda > mps > cpu)
             - "cuda": Force CUDA (raises error if unavailable)
             - "cuda:0", "cuda:1", etc.: Force specific GPU
@@ -58,6 +60,11 @@ def get_device(device: str = "auto") -> torch.device:
     Raises:
         RuntimeError: If specified device is unavailable.
     """
+    # Idempotent passthrough — callers may resolve once at the orchestrator
+    # level and then hand the resolved object down to agents.
+    if isinstance(device, torch.device):
+        return device
+
     if device == "auto":
         if torch.cuda.is_available():
             # Select GPU with most free memory
@@ -88,8 +95,20 @@ def get_device(device: str = "auto") -> torch.device:
         return torch.device(device)
 
 
+# Module-level cache so the "GPU Selection: ..." summary prints exactly
+# once per process. Pipelines that resolve the device for both the
+# environment-setup pass and per-agent inference would otherwise emit
+# the same selection report multiple times.
+_BEST_GPU_CACHE: Optional[str] = None
+
+
 def select_best_gpu(min_memory_mb: int = 1024) -> str:
-    """Select GPU with most free memory.
+    """Select GPU with most free memory (memoized per process).
+
+    Subsequent calls return the cached result without re-printing the
+    selection summary. This guarantees that the GPU-selection log line
+    appears at most once per process even when multiple components
+    independently request `"auto"` device resolution.
 
     Args:
         min_memory_mb: Minimum free memory required in MB (default: 1024 = 1GB)
@@ -100,6 +119,10 @@ def select_best_gpu(min_memory_mb: int = 1024) -> str:
     Raises:
         RuntimeError: If no GPU has sufficient free memory.
     """
+    global _BEST_GPU_CACHE
+    if _BEST_GPU_CACHE is not None:
+        return _BEST_GPU_CACHE
+
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA not available")
 
@@ -108,7 +131,8 @@ def select_best_gpu(min_memory_mb: int = 1024) -> str:
         raise RuntimeError("No CUDA GPUs available")
 
     if num_gpus == 1:
-        return "cuda:0"
+        _BEST_GPU_CACHE = "cuda:0"
+        return _BEST_GPU_CACHE
 
     # Get free memory for each GPU
     free_memory = []
@@ -141,7 +165,68 @@ def select_best_gpu(min_memory_mb: int = 1024) -> str:
         marker = " <-- SELECTED" if gpu_id == best_gpu else ""
         print(f"  cuda:{gpu_id}: {mem:.1f} MB free{marker}")
 
-    return f"cuda:{best_gpu}"
+    _BEST_GPU_CACHE = f"cuda:{best_gpu}"
+    return _BEST_GPU_CACHE
+
+
+def get_dtype(dtype: Any) -> torch.dtype:
+    """Resolve a dtype specification to a `torch.dtype`.
+
+    This is the single source of truth for dtype resolution across the
+    eparl/lmbase ecosystem. Callers MUST NOT re-implement string-to-dtype
+    mapping locally.
+
+    Accepted inputs:
+        - `torch.dtype`           : returned unchanged.
+        - "auto"                  : pick `bfloat16` if CUDA reports bf16
+                                    support, else `float16` on CUDA, else
+                                    `float32` on MPS/CPU.
+        - "float16" / "fp16"      : `torch.float16`.
+        - "bfloat16" / "bf16"     : `torch.bfloat16`.
+        - "float32" / "fp32"      : `torch.float32`.
+
+    Args:
+        dtype: dtype specification (string or `torch.dtype`).
+
+    Returns:
+        torch.dtype: Resolved dtype.
+
+    Raises:
+        ValueError: If the string is not one of the supported aliases.
+    """
+    if isinstance(dtype, torch.dtype):
+        return dtype
+
+    if not isinstance(dtype, str):
+        raise ValueError(
+            f"Unsupported dtype type {type(dtype).__name__}; expected str or torch.dtype."
+        )
+
+    if dtype == "auto":
+        if torch.cuda.is_available():
+            # bfloat16 is preferred on Ampere+ (and many ROCm) GPUs.
+            if (
+                hasattr(torch.cuda, "is_bf16_supported")
+                and torch.cuda.is_bf16_supported()
+            ):
+                return torch.bfloat16
+            return torch.float16
+        return torch.float32
+
+    alias_map = {
+        "float16": torch.float16,
+        "fp16": torch.float16,
+        "bfloat16": torch.bfloat16,
+        "bf16": torch.bfloat16,
+        "float32": torch.float32,
+        "fp32": torch.float32,
+    }
+    if dtype not in alias_map:
+        raise ValueError(
+            f"Unknown dtype '{dtype}'. Supported aliases: "
+            f"auto, float16/fp16, bfloat16/bf16, float32/fp32."
+        )
+    return alias_map[dtype]
 
 
 def get_gpu_info() -> List[Tuple[int, str, float, float]]:
