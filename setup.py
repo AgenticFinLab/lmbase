@@ -12,7 +12,9 @@ def get_long_description():
 
 def get_requirements():
     with open("requirements.txt") as f:
-        return f.read().splitlines()
+        lines = f.read().splitlines()
+    # Skip blank lines and comments so optional deps stay opt-in.
+    return [ln.strip() for ln in lines if ln.strip() and not ln.strip().startswith("#")]
 
 
 setuptools.setup(

@@ -1,19 +1,18 @@
-pandas
+# ---- Core (always required) ----
 transformers
-selenium
+datasets
 openai
 python-dotenv
-pyarrow
-networkx
-pydot
-datasets
+numpy
 matplotlib
-pydot
-graphviz
-tenacity
-txtai
-dotenv
-typing
-qwen_vl_utils
-# vllm
+networkx
 math_verify
+
+# ---- Optional: local model inference (GPU servers only) ----
+# Install manually when the server supports them:
+#   pip install vllm qwen_vl_utils
+# vllm
+# qwen_vl_utils
+
+# ---- Optional: FinAgent evaluation (lmbase.eval.finagent) ----
+# pip install langgraph langchain-openai langchain-anthropic langchain-community langchain-core langchain-google-genai langchain-huggingface pydantic
