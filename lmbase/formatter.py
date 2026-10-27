@@ -13,9 +13,9 @@ To support the multimodal inputs, we refer to:
 
     https://huggingface.co/learn/cookbook/en/fine_tuning_vlm_trl
 
-    Currently, for one content, we can only support one image.
-
-    The support for the multiple images will be added in the future.
+    For one content, all the images of the sample are kept, in the order of
+    their tokens, e.g., <image1>, <image2>, ... The first image is also
+    exposed as the `image` field for the single-image pipelines.
 """
 
 from lmbase.dataset import base
@@ -103,11 +103,13 @@ def map_vl_sample(
             }
         )
 
-    # Add the user prompt
-    user_content = [{"type": "text", "text": q}]
-    main_image = q_imgs[0][-1]
-    if main_image is not None:
-        user_content.insert(0, {"type": "image", "image": main_image})
+    # Add the user prompt, keeping every image of the sample in the order
+    # of its token, i.e., <image1>, <image2>, ...
+    image_paths = [path for _, path in q_imgs] if q_imgs else []
+    image_paths = [path for path in image_paths if path is not None]
+    user_content = [{"type": "image", "image": path} for path in image_paths]
+    user_content.append({"type": "text", "text": q})
+    main_image = image_paths[0] if len(image_paths) > 0 else None
 
     message.append(
         {
